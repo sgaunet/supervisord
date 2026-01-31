@@ -14,7 +14,7 @@ type ConfApi struct {
 	supervisor *supervisor.Supervisor
 }
 
-// NewLogtail creates a Logtail object
+// NewConfApi creates a ConfApi object
 func NewConfApi(s *supervisor.Supervisor) *ConfApi {
 	return &ConfApi{router: mux.NewRouter(), supervisor: s}
 }
@@ -46,7 +46,7 @@ func (ca *ConfApi) getProgramConfFile(writer http.ResponseWriter, request *http.
 	}
 
 	writer.WriteHeader(http.StatusOK)
-	writer.Write(b)
+	_, _ = writer.Write(b)
 }
 
 func getProgramConfigPath(programName string, s *supervisor.Supervisor) string {
@@ -60,10 +60,11 @@ func getProgramConfigPath(programName string, s *supervisor.Supervisor) string {
 }
 
 func readFile(path string) ([]byte, error) {
+	// #nosec G304 - path is validated at caller from supervisor configuration
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	return io.ReadAll(f)
 }

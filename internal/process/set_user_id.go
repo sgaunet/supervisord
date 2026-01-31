@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package process
 
@@ -11,7 +10,6 @@ import (
 )
 
 func setUserID(procAttr *syscall.SysProcAttr, uid uint32, gid uint32) {
-
 	u, err := user.Current()
 	if err == nil {
 		cuid, uid_err := strconv.ParseUint(u.Uid, 10, 32)

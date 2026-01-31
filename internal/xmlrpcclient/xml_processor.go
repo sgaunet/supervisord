@@ -18,9 +18,7 @@ func NewXMLPath() *XMLPath {
 
 // AddChildren appends paths to the XMLPath
 func (xp *XMLPath) AddChildren(names ...string) {
-	for _, name := range names {
-		xp.ElemNames = append(xp.ElemNames, name)
-	}
+	xp.ElemNames = append(xp.ElemNames, names...)
 }
 
 // AddChild adds child to the XMLPath

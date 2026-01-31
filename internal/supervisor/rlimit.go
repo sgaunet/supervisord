@@ -3,8 +3,9 @@
 package supervisor
 
 import (
-	"fmt"
 	"syscall"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
 func (s *Supervisor) checkRequiredResources() error {
@@ -21,27 +22,28 @@ func (s *Supervisor) checkRequiredResources() error {
 
 func (s *Supervisor) getMinRequiredRes(resourceName string) (uint64, error) {
 	if entry, ok := s.config.GetSupervisord(); ok {
-		value := uint64(entry.GetInt(resourceName, 0))
+		intVal := entry.GetInt(resourceName, 0)
+		if intVal < 0 {
+			return 0, apperrors.NewNegativeValueError(resourceName)
+		}
+		value := uint64(intVal)
 		if value > 0 {
 			return value, nil
-		} else {
-			return 0, fmt.Errorf("No such key %s", resourceName)
 		}
-	} else {
-		return 0, fmt.Errorf("No supervisord section")
+		return 0, apperrors.NewNoSuchKeyError(resourceName)
 	}
-
+	return 0, apperrors.ErrNoSupervisordSection
 }
 
 func (s *Supervisor) checkMinLimit(resource int, resourceName string, minRequiredSource uint64) error {
 	var limit syscall.Rlimit
 
 	if syscall.Getrlimit(resource, &limit) != nil {
-		return fmt.Errorf("fail to get the %s limit", resourceName)
+		return apperrors.NewFailedToGetLimitError(resourceName)
 	}
 
 	if minRequiredSource > limit.Max {
-		return fmt.Errorf("%s %d is greater than Hard limit %d", resourceName, minRequiredSource, limit.Max)
+		return apperrors.NewLimitExceedsHardError(resourceName, int64(minRequiredSource), int64(limit.Max))
 	}
 
 	if limit.Cur >= minRequiredSource {
@@ -50,7 +52,7 @@ func (s *Supervisor) checkMinLimit(resource int, resourceName string, minRequire
 
 	limit.Cur = limit.Max
 	if syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limit) != nil {
-		return fmt.Errorf("fail to set the %s to %d", resourceName, limit.Cur)
+		return apperrors.NewFailedToSetLimitError(resourceName, int64(limit.Cur))
 	}
 	return nil
 }

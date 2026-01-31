@@ -13,6 +13,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/ochinchina/go-ini"
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 	"github.com/sgaunet/supervisord/internal/config"
 	"github.com/sgaunet/supervisord/internal/daemon"
 	"github.com/sgaunet/supervisord/internal/supervisor"
@@ -61,7 +62,7 @@ var options Options
 var parser = flags.NewParser(&options, flags.Default & ^flags.PrintErrors)
 
 func loadEnvFile() {
-	if len(options.EnvFile) <= 0 {
+	if len(options.EnvFile) == 0 {
 		return
 	}
 	// try to open the environment file
@@ -70,7 +71,7 @@ func loadEnvFile() {
 		log.WithFields(log.Fields{"file": options.EnvFile}).Error("Fail to open environment file")
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	reader := bufio.NewReader(f)
 	for {
 		// for each line
@@ -88,13 +89,12 @@ func loadEnvFile() {
 			line = strings.TrimSpace(line[len("export"):])
 		}
 		// split the environment variable with "="
-		pos := strings.Index(line, "=")
-		if pos != -1 {
-			k := strings.TrimSpace(line[0:pos])
-			v := strings.TrimSpace(line[pos+1:])
+		if k, v, ok := strings.Cut(line, "="); ok {
+			k = strings.TrimSpace(k)
+			v = strings.TrimSpace(v)
 			// if key and value are not empty, put it into the environment
 			if len(k) > 0 && len(v) > 0 {
-				os.Setenv(k, v)
+				_ = os.Setenv(k, v)
 			}
 		}
 	}
@@ -128,14 +128,14 @@ func findSupervisordConf() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("fail to find supervisord.conf")
+	return "", apperrors.ErrConfigNotFound
 }
 
 func runServer() {
 	// infinite loop for handling Restart ('reload' command)
 	loadEnvFile()
 	for {
-		if len(options.Configuration) <= 0 {
+		if len(options.Configuration) == 0 {
 			options.Configuration, _ = findSupervisordConf()
 		}
 		s := supervisor.NewSupervisor(options.Configuration)
@@ -171,7 +171,7 @@ func main() {
 	daemon.ReapZombie()
 
 	// when execute `supervisord` without sub-command, it should start the server
-	parser.Command.SubcommandsOptional = true
+	parser.SubcommandsOptional = true
 	parser.CommandHandler = func(command flags.Commander, args []string) error {
 		if command == nil {
 			log.SetOutput(os.Stdout)

@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
 // StringExpression replace the python String like "%(var)s" to string
@@ -71,21 +73,21 @@ func (se *StringExpression) Eval(s string) (string, error) {
 			varValue, ok := se.env[varName]
 
 			if !ok {
-				return "", fmt.Errorf("fail to find the environment variable %s", varName)
+				return "", apperrors.NewEnvVarNotFoundError(varName)
 			}
 			if s[typ] == 'd' {
 				i, err := strconv.Atoi(varValue)
 				if err != nil {
-					return "", fmt.Errorf("can't convert %s to integer", varValue)
+					return "", apperrors.NewEnvVarConversionError(varValue)
 				}
 				s = s[0:start] + fmt.Sprintf("%"+s[end+1:typ+1], i) + s[typ+1:]
 			} else if s[typ] == 's' {
 				s = s[0:start] + varValue + s[typ+1:]
 			} else {
-				return "", fmt.Errorf("not implement type:%v", s[typ])
+				return "", apperrors.NewTypeNotImplementedError(string(s[typ]))
 			}
 		} else {
-			return "", fmt.Errorf("invalid string expression format")
+			return "", apperrors.ErrInvalidStringExpr
 		}
 	}
 }

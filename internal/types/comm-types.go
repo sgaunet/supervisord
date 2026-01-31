@@ -17,8 +17,8 @@ type ProcessInfo struct {
 	Spawnerr      string `xml:"spawnerr" json:"spawnerr"`
 	Exitstatus    int    `xml:"exitstatus" json:"exitstatus"`
 	Logfile       string `xml:"logfile" json:"logfile"`
-	StdoutLogfile string `xml:"stdout_logfile" json:"stdout_logfile"`
-	StderrLogfile string `xml:"stderr_logfile" json:"stderr_logfile"`
+	StdoutLogfile string `xml:"stdout_logfile" json:"stdoutLogfile"`
+	StderrLogfile string `xml:"stderr_logfile" json:"stderrLogfile"`
 	Pid           int    `xml:"pid" json:"pid"`
 }
 

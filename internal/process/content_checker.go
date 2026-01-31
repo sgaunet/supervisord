@@ -48,7 +48,7 @@ func (bc *BaseChecker) isReady() bool {
 
 // Check content of the input data
 func (bc *BaseChecker) Check() bool {
-	d := bc.timeoutTime.Sub(time.Now())
+	d := time.Until(bc.timeoutTime)
 	if d < 0 {
 		return false
 	}
@@ -57,7 +57,7 @@ func (bc *BaseChecker) Check() bool {
 	for {
 		select {
 		case data := <-bc.notifyChannel:
-			bc.data = bc.data + data
+			bc.data += data
 			if bc.isReady() {
 				return true
 			}
@@ -79,6 +79,7 @@ func NewScriptChecker(args []string) *ScriptChecker {
 
 // Check return code of the script. If return code is 0, check is successful
 func (sc *ScriptChecker) Check() bool {
+	// #nosec G204 - command args come from supervisor configuration file which is trusted
 	cmd := exec.Command(sc.args[0])
 	if len(sc.args) > 1 {
 		cmd.Args = sc.args
@@ -121,7 +122,7 @@ func (tc *TCPChecker) start() {
 				if err != nil {
 					break
 				}
-				tc.baseChecker.Write(b[0:n])
+				_, _ = tc.baseChecker.Write(b[0:n]) // Ignore write errors
 			}
 		}
 	}()
@@ -131,7 +132,7 @@ func (tc *TCPChecker) start() {
 func (tc *TCPChecker) Check() bool {
 	ret := tc.baseChecker.Check()
 	if tc.conn != nil {
-		tc.conn.Close()
+		_ = tc.conn.Close() // Ignore close error
 	}
 	return ret
 }
@@ -154,6 +155,7 @@ func (hc *HTTPChecker) Check() bool {
 		if hc.timeoutTime.After(time.Now()) {
 			resp, err := http.Get(hc.url)
 			if err == nil {
+				defer func() { _ = resp.Body.Close() }()
 				return resp.StatusCode >= 200 && resp.StatusCode < 300
 			}
 		}

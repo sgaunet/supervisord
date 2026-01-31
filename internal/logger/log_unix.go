@@ -3,11 +3,12 @@
 package logger
 
 import (
-	"errors"
 	"fmt"
 	"log/syslog"
 	"strconv"
 	"strings"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
 func toSyslogLevel(logLevel string) syslog.Priority {
@@ -77,7 +78,6 @@ func toSyslogFacility(facility string) syslog.Priority {
 		return syslog.LOG_LOCAL7
 	default:
 		return syslog.LOG_LOCAL0
-
 	}
 }
 
@@ -132,7 +132,7 @@ func (bs *BackendSysLogWriter) start() {
 			// if channel is closed
 			if !ok {
 				if writer != nil {
-					writer.Close()
+					_ = writer.Close() // Ignore close error on shutdown
 				}
 				break
 			}
@@ -141,9 +141,8 @@ func (bs *BackendSysLogWriter) start() {
 				writer, _ = syslog.Dial(bs.network, bs.raddr, bs.priority, bs.tag)
 			}
 			if writer != nil {
-				writer.Write(b)
+				_, _ = writer.Write(b) // Ignore syslog write errors
 			}
-
 		}
 	}()
 }
@@ -192,7 +191,7 @@ func parseSysLogConfig(config string) (protocol string, host string, port int, e
 			host = fields[0]
 			port, err = strconv.Atoi(fields[1])
 			if err != nil {
-				return
+				return "", "", 0, err
 			}
 		}
 	case 3:
@@ -200,18 +199,17 @@ func parseSysLogConfig(config string) (protocol string, host string, port int, e
 		host = fields[1]
 		port, err = strconv.Atoi(fields[2])
 		if err != nil {
-			return
+			return "", "", 0, err
 		}
 	default:
-		err = errors.New("invalid format")
+		err = apperrors.ErrInvalidFormat
 	}
-	return
-
+	return protocol, host, port, err
 }
 
 // NewRemoteSysLogger creates network syslog logger object
 func NewRemoteSysLogger(name string, config string, props map[string]string, logEventEmitter LogEventEmitter) *SysLogger {
-	if len(config) <= 0 {
+	if len(config) == 0 {
 		return NewSysLogger(name, props, logEventEmitter)
 	}
 

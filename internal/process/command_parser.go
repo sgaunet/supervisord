@@ -1,11 +1,11 @@
 package process
 
 import (
-	"errors"
-	"fmt"
 	"os/exec"
 	"syscall"
 	"unicode"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
 // find the position of byte ch in the string s start from offset
@@ -77,17 +77,17 @@ func parseCommand(command string) ([]string, error) {
 			i = cmdLen
 		}
 	}
-	if len(args) <= 0 {
-		return nil, fmt.Errorf("no command from empty string")
+	if len(args) == 0 {
+		return nil, apperrors.ErrNoCommandFromString
 	}
 	return args, nil
 }
 
 // create command from string or []string
 //
-func createCommand(command interface{}) (*exec.Cmd, error) {
+func createCommand(command any) (*exec.Cmd, error) {
 	args := make([]string, 0)
-	var err error = nil
+	var err error
 
 	if s, ok := command.(string); ok {
 		args, err = parseCommand(s)
@@ -98,10 +98,11 @@ func createCommand(command interface{}) (*exec.Cmd, error) {
 		args = a
 	}
 
-	if len(args) <= 0 {
-		return nil, errors.New("empty command")
+	if len(args) == 0 {
+		return nil, apperrors.ErrEmptyCommand
 	}
 
+	// #nosec G204 - command args come from supervisor configuration file which is trusted
 	cmd := exec.Command(args[0])
 	if len(args) > 1 {
 		cmd.Args = args
@@ -111,7 +112,7 @@ func createCommand(command interface{}) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func executeCommand(command interface{}) ([]byte, error) {
+func executeCommand(command any) ([]byte, error) {
 	cmd, err := createCommand(command)
 	if err != nil {
 		return nil, err

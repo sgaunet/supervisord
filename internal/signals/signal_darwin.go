@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"syscall"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
 var signalMap = map[string]os.Signal{"SIGABRT": syscall.SIGABRT,
@@ -62,7 +64,10 @@ func ToSignal(signalName string) (os.Signal, error) {
 //    sigChildren - true if the signal needs to be sent to the children also
 //
 func Kill(process *os.Process, sig os.Signal, sigChildren bool) error {
-	localSig := sig.(syscall.Signal)
+	localSig, ok := sig.(syscall.Signal)
+	if !ok {
+		return apperrors.NewInvalidSignalTypeError(sig)
+	}
 	pid := process.Pid
 	if sigChildren {
 		pid = -pid

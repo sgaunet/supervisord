@@ -6,7 +6,7 @@ import (
 	"crypto/sha1" //nolint:gosec
 	"encoding/hex"
 	"io"
-	"io/ioutil"
+	
 	"net"
 	"net/http"
 	"os"
@@ -53,7 +53,7 @@ func (h *httpBasicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(h.password, "{SHA}") {
 			log.Debug("auth with SHA")
 			hash := sha1.New() //nolint:gosec
-			io.WriteString(hash, password)
+			_, _ = io.WriteString(hash, password)
 			if hex.EncodeToString(hash.Sum(nil)) == h.password[5:] {
 				h.handler.ServeHTTP(w, r)
 				return
@@ -65,7 +65,7 @@ func (h *httpBasicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("WWW-Authenticate", "Basic realm=\"supervisor\"")
-	w.WriteHeader(401)
+	w.WriteHeader(http.StatusUnauthorized)
 }
 
 // NewXMLRPC create a new XML RPC object
@@ -77,7 +77,7 @@ func NewXMLRPC() *XMLRPC {
 func (p *XMLRPC) Stop() {
 	log.Info("stop listening")
 	for _, listener := range p.listeners {
-		listener.Close()
+		_ = listener.Close()
 	}
 	p.listeners = make(map[string]net.Listener)
 }
@@ -85,7 +85,7 @@ func (p *XMLRPC) Stop() {
 // StartUnixHTTPServer start http server on unix domain socket with path listenAddr. If both user and password are not empty, the user
 // must provide user and password for basic authentication when making an XML RPC request.
 func (p *XMLRPC) StartUnixHTTPServer(user string, password string, listenAddr string, s *supervisor.Supervisor, startedCb func()) {
-	os.Remove(listenAddr)
+	_ = os.Remove(listenAddr)
 	p.startHTTPServer(user, password, "unix", listenAddr, s, startedCb)
 }
 
@@ -102,12 +102,13 @@ func (p *XMLRPC) isHTTPServerStartedOnProtocol(protocol string) bool {
 
 // ReadFile reads a file and returns its contents
 func ReadFile(path string) ([]byte, error) {
+	// #nosec G304 - path is validated at caller from supervisor configuration
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	b, err := ioutil.ReadAll(f)
+	defer func() { _ = f.Close() }()
+	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func readLogHtml(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	writer.WriteHeader(http.StatusOK)
-	writer.Write(b)
+	_, _ = writer.Write(b)
 }
 
 func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, listenAddr string, s *supervisor.Supervisor, startedCb func()) {
@@ -143,7 +144,7 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 		return
 	}
 	procCollector := process.NewProcCollector(s.GetManager())
-	prometheus.Register(procCollector)
+	_ = prometheus.Register(procCollector)
 	mux := http.NewServeMux()
 	mux.Handle("/RPC2", newHTTPBasicAuth(user, password, p.createRPCServer(s)))
 
@@ -171,7 +172,7 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 		}
 
 		writer.WriteHeader(http.StatusOK)
-		writer.Write(b)
+		_, _ = writer.Write(b)
 	})
 
 	// 读log.html文件
@@ -200,7 +201,7 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 		log.WithFields(log.Fields{"addr": listenAddr, "protocol": protocol}).Info("success to listen on address")
 		p.listeners[protocol] = listener
 		startedCb()
-		http.Serve(listener, mux)
+		_ = http.Serve(listener, mux)
 	} else {
 		startedCb()
 		log.WithFields(log.Fields{"addr": listenAddr, "protocol": protocol}).Fatal("fail to listen on address")
@@ -211,7 +212,7 @@ func (p *XMLRPC) createRPCServer(s *supervisor.Supervisor) *rpc.Server {
 	RPC := rpc.NewServer()
 	xmlrpcCodec := xml.NewCodec()
 	RPC.RegisterCodec(xmlrpcCodec, "text/xml")
-	RPC.RegisterService(s, "")
+	_ = RPC.RegisterService(s, "")
 
 	xmlrpcCodec.RegisterAlias("supervisor.getVersion", "Supervisor.GetVersion")
 	xmlrpcCodec.RegisterAlias("supervisor.getAPIVersion", "Supervisor.GetVersion")

@@ -6,12 +6,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
 
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 	"github.com/sgaunet/supervisord/internal/types"
 
 	"github.com/ochinchina/gorilla-xmlrpc/xml"
@@ -48,7 +48,7 @@ var emptyReader io.ReadCloser
 
 func init() {
 	var buf bytes.Buffer
-	emptyReader = ioutil.NopCloser(&buf)
+	emptyReader = io.NopCloser(&buf)
 }
 
 // NewXMLRPCClient creates XMLRPCClient object
@@ -78,7 +78,7 @@ func (r *XMLRPCClient) URL() string {
 
 func (r *XMLRPCClient) createHTTPRequest(method string, url string, data interface{}) (*http.Request, error) {
 	buf, _ := xml.EncodeClientRequest(method, data)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(buf))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(buf))
 	if err != nil {
 		if r.verbose {
 			fmt.Println("Fail to create request:", err)
@@ -96,13 +96,13 @@ func (r *XMLRPCClient) createHTTPRequest(method string, url string, data interfa
 }
 
 func (r *XMLRPCClient) processResponse(resp *http.Response, processBody func(io.ReadCloser, error)) {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode/100 != 2 {
 		if r.verbose {
 			fmt.Println("Bad Response:", resp.Status)
 		}
-		processBody(emptyReader, fmt.Errorf("Bad response with status code %d", resp.StatusCode))
+		processBody(emptyReader, apperrors.NewBadResponseError(resp.StatusCode))
 	} else {
 		processBody(resp.Body, nil)
 	}
@@ -121,9 +121,9 @@ func (r *XMLRPCClient) postInetHTTP(method string, url string, data interface{},
 		req = req.WithContext(ctx)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:bodyclose // Body is closed in processResponse
 	if err != nil {
-		processBody(emptyReader, fmt.Errorf("Fail to send http request to supervisord: %s", err))
+		processBody(emptyReader, apperrors.NewHTTPRequestFailedError(err))
 		return
 	}
 	r.processResponse(resp, processBody)
@@ -139,10 +139,10 @@ func (r *XMLRPCClient) postUnixHTTP(method string, path string, data interface{}
 		conn, err = net.Dial("unix", path)
 	}
 	if err != nil {
-		processBody(emptyReader, fmt.Errorf("Fail to connect unix socket path: %s. %s", r.serverurl, err))
+		processBody(emptyReader, apperrors.NewUnixSocketFailedError(r.serverurl, err))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if r.timeout > 0 {
 		if err := conn.SetDeadline(time.Now().Add(r.timeout)); err != nil {
@@ -153,17 +153,17 @@ func (r *XMLRPCClient) postUnixHTTP(method string, path string, data interface{}
 	req, err := r.createHTTPRequest(method, "/RPC2", data)
 
 	if err != nil {
-		processBody(emptyReader, fmt.Errorf("Fail to create http request. %s", err))
+		processBody(emptyReader, apperrors.NewHTTPCreateFailedError(err))
 		return
 	}
 	err = req.Write(conn)
 	if err != nil {
-		processBody(emptyReader, fmt.Errorf("Fail to write to unix socket %s", r.serverurl))
+		processBody(emptyReader, apperrors.NewUnixSocketWriteError(r.serverurl))
 		return
 	}
-	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	resp, err := http.ReadResponse(bufio.NewReader(conn), req) //nolint:bodyclose // Body is closed in processResponse
 	if err != nil {
-		processBody(emptyReader, fmt.Errorf("Fail to read response %s", err))
+		processBody(emptyReader, apperrors.NewResponseReadFailedError(err))
 		return
 	}
 	r.processResponse(resp, processBody)
@@ -214,7 +214,7 @@ func (r *XMLRPCClient) GetAllProcessInfo() (reply AllProcessInfoReply, err error
 // ChangeProcessState requests to change given process state
 func (r *XMLRPCClient) ChangeProcessState(change string, processName string) (reply StartStopReply, err error) {
 	if !(change == "start" || change == "stop") {
-		err = fmt.Errorf("Incorrect required state")
+		err = apperrors.ErrIncorrectState
 		return
 	}
 
@@ -232,7 +232,7 @@ func (r *XMLRPCClient) ChangeProcessState(change string, processName string) (re
 // ChangeAllProcessState requests to change all supervised programs to same state( start/stop )
 func (r *XMLRPCClient) ChangeAllProcessState(change string) (reply AllProcessInfoReply, err error) {
 	if !(change == "start" || change == "stop") {
-		err = fmt.Errorf("Incorrect required state")
+		err = apperrors.ErrIncorrectState
 		return
 	}
 	ins := struct{ Wait bool }{true}

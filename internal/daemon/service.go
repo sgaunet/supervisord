@@ -69,7 +69,7 @@ func (sc ServiceCommand) Execute(args []string) error {
 			fmt.Println("Succeed to install service go-supervisord")
 		}
 	case "uninstall":
-		s.Stop()
+		_ = s.Stop()
 		err := s.Uninstall()
 		if err != nil {
 			log.Error("Failed to uninstall service go-supervisord: ", err)
@@ -110,7 +110,7 @@ func showUsage() {
 
 // RegisterServiceCommand registers the service command with the parser
 func RegisterServiceCommand(p interface{ AddCommand(string, string, string, interface{}) (interface{}, error) }, serviceCmd *ServiceCommand) {
-	p.AddCommand("service",
+	_, _ = p.AddCommand("service",
 		"install/uninstall/start/stop service",
 		"install/uninstall/start/stop service",
 		serviceCmd)

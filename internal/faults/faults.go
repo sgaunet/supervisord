@@ -5,12 +5,12 @@ import (
 )
 
 const (
-	// UnknownMethod unknown xml rpc method
+	// UnknownMethod unknown xml rpc method.
 	UnknownMethod = 1
-	// IncorrectParameters  incorrect parameters result code
+	// IncorrectParameters incorrect parameters result code.
 	IncorrectParameters = 2
 
-	// BadArguments Bad argument result code for xml rpc
+	// BadArguments Bad argument result code for xml rpc.
 	BadArguments = 3
 
 	// SignatureUnsupported signature unsupported result code for xml rpc

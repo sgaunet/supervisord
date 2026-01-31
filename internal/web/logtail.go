@@ -46,8 +46,8 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	var ok bool = false
-	var compositeLogger *logger.CompositeLogger = nil
+	var ok bool
+	var compositeLogger *logger.CompositeLogger
 	if logType == "stdout" {
 		compositeLogger, ok = proc.StdoutLog.(*logger.CompositeLogger)
 	} else {
@@ -68,9 +68,9 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.WriteHeader(http.StatusOK)
 
-	w.Write([]byte(s))
+	_, _ = w.Write([]byte(s))
 	//
-	//if ok {
+	// if ok {
 	//	w.Header().Set("Transfer-Encoding", "chunked")
 	//	w.WriteHeader(http.StatusOK)
 	//	flusher, _ := w.(http.Flusher)

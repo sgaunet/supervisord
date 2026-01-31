@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -60,6 +61,7 @@ type EventListenerManager struct {
 // EventPoolSerial manage the event serial generation
 type EventPoolSerial struct {
 	sync.Mutex
+
 	poolserial map[string]uint64
 }
 
@@ -199,11 +201,11 @@ func (el *EventListener) readResult() (string, error) {
 			return "", err
 		}
 		if n < 0 {
-			return "", fmt.Errorf("Fail to read the result because the result bytes is less than 0")
+			return "", apperrors.ErrNegativeResultBytes
 		}
 		// read n bytes
 		b := make([]byte, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			b[i], err = el.stdin.ReadByte()
 			if err != nil {
 				return "", err
@@ -212,7 +214,7 @@ func (el *EventListener) readResult() (string, error) {
 		// ok, get the n bytes
 		return string(b), nil
 	}
-	return "", fmt.Errorf("Fail to read the result")
+	return "", apperrors.ErrFailedToReadResult
 }
 
 // HandleEvent handles emitted event
@@ -241,7 +243,7 @@ func (el *EventListener) encodeEvent(event Event) []byte {
 		event.GetType(),
 		len(body))
 	// write the header & body to buffer
-	r := bytes.NewBuffer([]byte(s))
+	r := bytes.NewBufferString(s)
 	r.Write(body)
 
 	return r.Bytes()
@@ -314,7 +316,6 @@ func NewEventListenerManager() *EventListenerManager {
 func (em *EventListenerManager) registerEventListener(eventListenerName string,
 	events []string,
 	listener *EventListener) {
-
 	em.namedListeners[eventListenerName] = listener
 	allEvents := make(map[string]bool)
 	for _, event := range events {
@@ -382,6 +383,7 @@ func (em *EventListenerManager) EmitEvent(event Event) {
 // RemoteCommunicationEvent remote communication event definition
 type RemoteCommunicationEvent struct {
 	BaseEvent
+
 	typ  string
 	data string
 }
@@ -402,6 +404,7 @@ func (r *RemoteCommunicationEvent) GetBody() string {
 // ProcCommEvent process communication event definition
 type ProcCommEvent struct {
 	BaseEvent
+
 	processName string
 	groupName   string
 	pid         int
@@ -434,6 +437,7 @@ func EmitEvent(event Event) {
 // TickEvent the tick event definition
 type TickEvent struct {
 	BaseEvent
+
 	when int64
 }
 
@@ -505,6 +509,7 @@ func (pec *ProcCommEventCapture) startCapture() {
 	}()
 }
 
+//nolint:ireturn // Factory pattern requires interface return
 func (pec *ProcCommEventCapture) captureEvent() Event {
 	pec.findBeginStr()
 	endPos := pec.findEndStr()
@@ -552,6 +557,7 @@ func (pec *ProcCommEventCapture) findEndStr() int {
 // ProcessStateEvent process state event definition
 type ProcessStateEvent struct {
 	BaseEvent
+
 	processName string
 	groupName   string
 	fromState   string
@@ -722,6 +728,7 @@ func CreateSupervisorStateChangeRunning() *SupervisorStateChangeEvent {
 	return r
 }
 
+//nolint:unused // Keep for future use
 func createSupervisorStateChangeStopping() *SupervisorStateChangeEvent {
 	r := &SupervisorStateChangeEvent{}
 	r.eventType = "SUPERVISOR_STATE_CHANGE_STOPPING"
@@ -732,6 +739,7 @@ func createSupervisorStateChangeStopping() *SupervisorStateChangeEvent {
 // ProcessLogEvent process log event definition
 type ProcessLogEvent struct {
 	BaseEvent
+
 	processName string
 	groupName   string
 	pid         int
@@ -778,12 +786,13 @@ func CreateProcessLogStderrEvent(processName string,
 // ProcessGroupEvent the process group event definition
 type ProcessGroupEvent struct {
 	BaseEvent
+
 	groupName string
 }
 
 // GetBody returns body of process group event
 func (pe *ProcessGroupEvent) GetBody() string {
-	return fmt.Sprintf("groupname:%s", pe.groupName)
+	return "groupname:" + pe.groupName
 }
 
 // CreateProcessGroupAddedEvent emits create process group added event

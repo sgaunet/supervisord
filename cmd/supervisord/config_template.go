@@ -124,6 +124,7 @@ type InitTemplateCommand struct {
 var initTemplateCommand InitTemplateCommand
 
 // Execute execute the init command
+//nolint:unparam // args required by flags interface
 func (x *InitTemplateCommand) Execute(args []string) error {
 	f, err := os.Create(x.OutFile)
 	if err != nil {
@@ -143,8 +144,8 @@ func GenTemplate(writer io.Writer) error {
 
 // RegisterInitCommand registers the init command with the parser
 func RegisterInitCommand(p interface{ AddCommand(string, string, string, interface{}) (interface{}, error) }) {
-	p.AddCommand("init",
+	_, _ = p.AddCommand("init",
 		"initialize a template",
 		"The init subcommand writes the supported configurations to specified file",
-		&initTemplateCommand)
+		&initTemplateCommand) // Ignore command registration error
 }

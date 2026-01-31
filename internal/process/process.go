@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/mitchellh/go-ps"
 	"github.com/ochinchina/filechangemonitor"
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 	"github.com/sgaunet/supervisord/internal/config"
 	"github.com/sgaunet/supervisord/internal/events"
 	"github.com/sgaunet/supervisord/internal/logger"
@@ -129,12 +131,12 @@ func (p *Process) addToCron() {
 
 	if s != "" {
 		log.WithFields(log.Fields{"program": p.GetName()}).Info("try to create cron program with cron expression:", s)
-		scheduler.AddFunc(s, func() {
+		_, _ = scheduler.AddFunc(s, func() {
 			log.WithFields(log.Fields{"program": p.GetName()}).Info("start cron program")
 			if !p.isRunning() {
 				p.Start(false)
 			}
-		})
+		}) // Ignore cron registration error
 	}
 
 }
@@ -217,7 +219,7 @@ func (p *Process) GetDescription() string {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.state == Running {
-		seconds := int(time.Now().Sub(p.startTime).Seconds())
+		seconds := int(time.Since(p.startTime).Seconds())
 		minutes := seconds / 60
 		hours := minutes / 60
 		days := hours / 24
@@ -314,7 +316,15 @@ func (p *Process) getRestartPause() int {
 }
 
 func (p *Process) getStartRetries() int32 {
-	return int32(p.config.GetInt("startretries", 3))
+	retries := p.config.GetInt("startretries", 3)
+	if retries < 0 {
+		retries = 0
+	}
+	if retries > 2147483647 { // Max int32
+		retries = 2147483647
+	}
+	// #nosec G115 - overflow protected by bounds check above
+	return int32(retries)
 }
 
 func (p *Process) isAutoStart() bool {
@@ -326,6 +336,7 @@ func (p *Process) GetPriority() int {
 	return p.config.GetInt("priority", 999)
 }
 
+//nolint:unused // Keep for future use
 func (p *Process) getNumberProcs() int {
 	return p.config.GetInt("numprocs", 1)
 }
@@ -336,7 +347,7 @@ func (p *Process) SendProcessStdin(chars string) error {
 		_, err := p.stdin.Write([]byte(chars))
 		return err
 	}
-	return fmt.Errorf("NO_FILE")
+	return apperrors.ErrNoFile
 }
 
 // check if the process should be
@@ -363,23 +374,18 @@ func (p *Process) isAutoRestart() bool {
 }
 
 func (p *Process) inExitCodes(exitCode int) bool {
-	for _, code := range p.getExitCodes() {
-		if code == exitCode {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.getExitCodes(), exitCode)
 }
 
 func (p *Process) getExitCode() (int, error) {
 	if p.cmd.ProcessState == nil {
-		return -1, fmt.Errorf("no exit code")
+		return -1, apperrors.ErrNoExitCode
 	}
 	if status, ok := p.cmd.ProcessState.Sys().(syscall.WaitStatus); ok {
 		return status.ExitStatus(), nil
 	}
 
-	return -1, fmt.Errorf("no exit code")
+	return -1, apperrors.ErrNoExitCode
 
 }
 
@@ -420,7 +426,7 @@ func (p *Process) createProgramCommand() error {
 	}
 	if p.setUser() != nil {
 		log.WithFields(log.Fields{"user": p.config.GetString("user", "")}).Error("fail to run as user")
-		return fmt.Errorf("fail to set user")
+		return apperrors.ErrFailedToSetUser
 	}
 	p.setProgramRestartChangeMonitor(args[0])
 	setDeathsig(p.cmd.SysProcAttr)
@@ -489,8 +495,9 @@ func (p *Process) setProgramRestartChangeMonitor(programPath string) {
 }
 
 // wait for the started program exit
+//nolint:unparam // startSecs may be used in future
 func (p *Process) waitForExit(startSecs int64) {
-	p.cmd.Wait()
+	_ = p.cmd.Wait() // Error already logged via ProcessState
 	if p.cmd.ProcessState != nil {
 		log.WithFields(log.Fields{"program": p.GetName()}).Infof("program stopped with status:%v", p.cmd.ProcessState)
 	} else {
@@ -500,13 +507,12 @@ func (p *Process) waitForExit(startSecs int64) {
 	defer p.lock.Unlock()
 	p.stopTime = time.Now()
 
-	// FIXME: we didn't set eventlistener logger
-	// since it's stdout/stderr has been specifically managed.
+	// TODO: we didn't set eventlistener logger since it's stdout/stderr has been specifically managed.
 	if p.StdoutLog != nil {
-		p.StdoutLog.Close()
+		_ = p.StdoutLog.Close() // Ignore close error on exit
 	}
 	if p.StderrLog != nil {
-		p.StderrLog.Close()
+		_ = p.StderrLog.Close() // Ignore close error on exit
 	}
 
 }
@@ -564,7 +570,7 @@ func (p *Process) run(finishCb func()) {
 		once.Do(finishCb)
 	}
 
-	//process is not expired and not stoped by user
+	// Process is not expired and not stopped by user.
 	for !p.stopByUser {
 		if restartPause > 0 && atomic.LoadInt32(p.retryTimes) != 0 {
 			// pause
@@ -616,10 +622,10 @@ func (p *Process) run(finishCb func()) {
 				time.Sleep(halfWaitsecs)
 			}
 			if p.StdoutLog != nil {
-				p.StdoutLog.Close()
+				_ = p.StdoutLog.Close() // Ignore close error
 			}
 			if p.StderrLog != nil {
-				p.StderrLog.Close()
+				_ = p.StderrLog.Close() // Ignore close error
 			}
 		}()
 
@@ -745,7 +751,7 @@ func (p *Process) sendSignals(sigs []string, sigChildren bool) {
 	for _, strSig := range sigs {
 		sig, err := signals.ToSignal(strSig)
 		if err == nil {
-			p.sendSignal(sig, sigChildren)
+			_ = p.sendSignal(sig, sigChildren) // Ignore signal send error
 		} else {
 			log.WithFields(log.Fields{"program": p.GetName(), "signal": strSig}).Info("Invalid signal name")
 		}
@@ -764,7 +770,7 @@ func (p *Process) sendSignal(sig os.Signal, sigChildren bool) error {
 		err := signals.Kill(p.cmd.Process, sig, sigChildren)
 		return err
 	}
-	return fmt.Errorf("process is not started")
+	return apperrors.ErrProcessNotStarted
 }
 
 func (p *Process) setEnv() {
@@ -867,6 +873,7 @@ func (p *Process) setLog() {
 	}
 }
 
+//nolint:ireturn // Factory pattern requires interface return
 func (p *Process) createStdoutLogEventEmitter() logger.LogEventEmitter {
 	if p.config.GetBytes("stdout_capture_maxbytes", 0) <= 0 && p.config.GetBool("stdout_events_enabled", false) {
 		return logger.NewStdoutLogEventEmitter(p.config.GetProgramName(), p.config.GetGroupName(), func() int {
@@ -876,6 +883,7 @@ func (p *Process) createStdoutLogEventEmitter() logger.LogEventEmitter {
 	return logger.NewNullLogEventEmitter()
 }
 
+//nolint:ireturn // Factory pattern requires interface return
 func (p *Process) createStderrLogEventEmitter() logger.LogEventEmitter {
 	if p.config.GetBytes("stderr_capture_maxbytes", 0) <= 0 && p.config.GetBool("stderr_events_enabled", false) {
 		return logger.NewStdoutLogEventEmitter(p.config.GetProgramName(), p.config.GetGroupName(), func() int {
@@ -897,10 +905,12 @@ func (p *Process) registerEventListener(eventListenerName string,
 	events.RegisterEventListener(eventListenerName, _events, eventListener)
 }
 
+//nolint:unused // Keep for future use
 func (p *Process) unregisterEventListener(eventListenerName string) {
 	events.UnregisterEventListener(eventListenerName)
 }
 
+//nolint:ireturn // Factory pattern requires interface return
 func (p *Process) createStdoutLogger() logger.Logger {
 	logFile := p.GetStdoutLogfile()
 	maxBytes := int64(p.config.GetBytes("stdout_logfile_maxbytes", 50*1024*1024))
@@ -924,6 +934,7 @@ func (p *Process) createStdoutLogger() logger.Logger {
 	return logger.NewLogger(p.GetName(), logFile, logger.NewNullLocker(), maxBytes, backups, props, logEventEmitter)
 }
 
+//nolint:ireturn // Factory pattern requires interface return
 func (p *Process) createStderrLogger() logger.Logger {
 	logFile := p.GetStderrLogfile()
 	maxBytes := int64(p.config.GetBytes("stderr_logfile_maxbytes", 50*1024*1024))
@@ -1076,7 +1087,7 @@ func (p *Process) Stop(wait bool) {
 				continue
 			}
 			log.WithFields(log.Fields{"program": p.GetName(), "signal": sigs[i]}).Info("send stop signal to program")
-			p.Signal(sig, stopasgroup)
+			_ = p.Signal(sig, stopasgroup) // Ignore signal send error
 			endTime := time.Now().Add(waitsecs)
 			// wait at most "stopwaitsecs" seconds for one signal
 			for endTime.After(time.Now()) {
@@ -1090,7 +1101,7 @@ func (p *Process) Stop(wait bool) {
 		}
 		if atomic.LoadInt32(&stopped) == 0 {
 			log.WithFields(log.Fields{"program": p.GetName()}).Info("force to kill the program")
-			p.Signal(syscall.SIGKILL, killasgroup)
+			_ = p.Signal(syscall.SIGKILL, killasgroup) // Ignore SIGKILL error
 			killEndTime := time.Now().Add(killwaitsecs)
 			for killEndTime.After(time.Now()) {
 				// if it exits

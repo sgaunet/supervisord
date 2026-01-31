@@ -13,7 +13,7 @@ func pathSplit(path string) []string {
 		if len(file) > 0 {
 			r = append(r, file)
 		}
-		if len(dir) <= 0 {
+		if len(dir) == 0 {
 			break
 		}
 		curPath = dir[0 : len(dir)-1]
