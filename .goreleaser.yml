@@ -12,6 +12,7 @@ builds:
     main: ./cmd/supervisord
     binary: supervisord
     ldflags:
+      - -s -w
       - -X main.BuildVersion={{.Version}}
     goos:
       - linux
@@ -29,6 +30,8 @@ builds:
       - CGO_ENABLED=0
     main: ./cmd/pidproxy
     binary: pidproxy
+    ldflags:
+      - -s -w
     goos:
       - linux
       - darwin
