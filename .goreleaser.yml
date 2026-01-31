@@ -79,6 +79,9 @@ changelog:
 dockers:
   # https://goreleaser.com/customization/docker/
   - use: buildx
+    ids:
+      - supervisord
+      - pidproxy
     goos: linux
     goarch: amd64
     image_templates:
@@ -94,6 +97,9 @@ dockers:
     # - resources
 
   - use: buildx
+    ids:
+      - supervisord
+      - pidproxy
     goos: linux
     goarch: arm64
     image_templates:
@@ -109,6 +115,9 @@ dockers:
     # - resources
 
   - use: buildx
+    ids:
+      - supervisord
+      - pidproxy
     goos: linux
     goarch: arm
     goarm: "6"
@@ -125,6 +134,9 @@ dockers:
     # - resources
 
   - use: buildx
+    ids:
+      - supervisord
+      - pidproxy
     goos: linux
     goarch: arm
     goarm: "7"
