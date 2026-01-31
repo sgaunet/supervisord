@@ -1,8 +1,9 @@
 package process
 
 import (
-	"supervisord/config"
 	"testing"
+
+	"github.com/sgaunet/supervisord/config"
 )
 
 var procs *Manager = NewManager()
