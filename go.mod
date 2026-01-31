@@ -1,4 +1,4 @@
-module github.com/ochinchina/supervisord
+module github.com/sgaunet/supervisord
 
 go 1.24.0
 
@@ -13,16 +13,16 @@ require (
 	github.com/ochinchina/go-ini v1.0.1
 	github.com/ochinchina/go-reaper v0.0.0-20181016012355-6b11389e79fc
 	github.com/ochinchina/gorilla-xmlrpc v0.0.0-20171012055324-ecf2fe693a2c
-	github.com/ochinchina/supervisord/config v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/events v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/faults v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/logger v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/process v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/signals v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/types v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/util v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/xmlrpcclient v0.0.0-20250610055946-d5a5470d11af
 	github.com/prometheus/client_golang v1.22.0
+	github.com/sgaunet/supervisord/config v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/events v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/faults v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/logger v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/process v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/signals v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/types v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/util v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/xmlrpcclient v0.0.0-20250610055946-d5a5470d11af
 	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/protobuf v1.36.6 // indirect; CVE-2024-24786
 )
@@ -44,13 +44,13 @@ require (
 )
 
 replace (
-	github.com/ochinchina/supervisord/config => ./config
-	github.com/ochinchina/supervisord/events => ./events
-	github.com/ochinchina/supervisord/faults => ./faults
-	github.com/ochinchina/supervisord/logger => ./logger
-	github.com/ochinchina/supervisord/process => ./process
-	github.com/ochinchina/supervisord/signals => ./signals
-	github.com/ochinchina/supervisord/types => ./types
-	github.com/ochinchina/supervisord/util => ./util
-	github.com/ochinchina/supervisord/xmlrpcclient => ./xmlrpcclient
+	github.com/sgaunet/supervisord/config => ./config
+	github.com/sgaunet/supervisord/events => ./events
+	github.com/sgaunet/supervisord/faults => ./faults
+	github.com/sgaunet/supervisord/logger => ./logger
+	github.com/sgaunet/supervisord/process => ./process
+	github.com/sgaunet/supervisord/signals => ./signals
+	github.com/sgaunet/supervisord/types => ./types
+	github.com/sgaunet/supervisord/util => ./util
+	github.com/sgaunet/supervisord/xmlrpcclient => ./xmlrpcclient
 )

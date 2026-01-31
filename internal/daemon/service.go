@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import (
 	"fmt"
@@ -9,9 +9,9 @@ import (
 
 // ServiceCommand install/uninstall/start/stop supervisord service
 type ServiceCommand struct {
+	Configuration string
+	EnvFile       string
 }
-
-var serviceCommand ServiceCommand
 
 type program struct{}
 
@@ -37,11 +37,11 @@ func (sc ServiceCommand) Execute(args []string) error {
 	}
 
 	serviceArgs := make([]string, 0)
-	if options.Configuration != "" {
-		serviceArgs = append(serviceArgs, "--configuration="+options.Configuration)
+	if sc.Configuration != "" {
+		serviceArgs = append(serviceArgs, "--configuration="+sc.Configuration)
 	}
-	if options.EnvFile != "" {
-		serviceArgs = append(serviceArgs, "--env-file="+options.EnvFile)
+	if sc.EnvFile != "" {
+		serviceArgs = append(serviceArgs, "--env-file="+sc.EnvFile)
 	}
 
 	svcConfig := &service.Config{
@@ -108,9 +108,10 @@ func showUsage() {
 	fmt.Println("usage: supervisord service install/uninstall/start/stop")
 }
 
-func init() {
-	parser.AddCommand("service",
+// RegisterServiceCommand registers the service command with the parser
+func RegisterServiceCommand(p interface{ AddCommand(string, string, string, interface{}) (interface{}, error) }, serviceCmd *ServiceCommand) {
+	p.AddCommand("service",
 		"install/uninstall/start/stop service",
 		"install/uninstall/start/stop service",
-		&serviceCommand)
+		serviceCmd)
 }

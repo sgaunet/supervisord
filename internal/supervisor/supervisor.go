@@ -1,4 +1,4 @@
-package main
+package supervisor
 
 import (
 	"fmt"
@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ochinchina/supervisord/config"
-	"github.com/ochinchina/supervisord/events"
-	"github.com/ochinchina/supervisord/faults"
-	"github.com/ochinchina/supervisord/logger"
-	"github.com/ochinchina/supervisord/process"
-	"github.com/ochinchina/supervisord/signals"
-	"github.com/ochinchina/supervisord/types"
-	"github.com/ochinchina/supervisord/util"
+	"github.com/sgaunet/supervisord/config"
+	"github.com/sgaunet/supervisord/events"
+	"github.com/sgaunet/supervisord/faults"
+	"github.com/sgaunet/supervisord/logger"
+	"github.com/sgaunet/supervisord/process"
+	"github.com/sgaunet/supervisord/signals"
+	"github.com/sgaunet/supervisord/types"
+	"github.com/sgaunet/supervisord/util"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -30,7 +30,6 @@ const (
 type Supervisor struct {
 	config     *config.Config   // supervisor configuration
 	procMgr    *process.Manager // process manager
-	xmlRPC     *XMLRPC          // XMLRPC interface
 	logger     logger.Logger    // logger manager
 	lock       sync.Mutex
 	restarting bool // if supervisor is in restarting state
@@ -92,7 +91,6 @@ type ProcessTailLog struct {
 func NewSupervisor(configFile string) *Supervisor {
 	return &Supervisor{config: config.NewConfig(configFile),
 		procMgr:    process.NewManager(),
-		xmlRPC:     NewXMLRPC(),
 		restarting: false}
 }
 
@@ -510,48 +508,8 @@ func (s *Supervisor) startEventListeners() {
 }
 
 func (s *Supervisor) startHTTPServer() {
-	httpServerConfig, ok := s.config.GetInetHTTPServer()
-	s.xmlRPC.Stop()
-	if ok {
-		addr := httpServerConfig.GetString("port", "")
-		if addr != "" {
-			cond := sync.NewCond(&sync.Mutex{})
-			cond.L.Lock()
-			defer cond.L.Unlock()
-			go s.xmlRPC.StartInetHTTPServer(httpServerConfig.GetString("username", ""),
-				httpServerConfig.GetString("password", ""),
-				addr,
-				s,
-				func() {
-					cond.L.Lock()
-					cond.Signal()
-					cond.L.Unlock()
-				})
-			cond.Wait()
-		}
-	}
-
-	httpServerConfig, ok = s.config.GetUnixHTTPServer()
-	if ok {
-		env := config.NewStringExpression("here", s.config.GetConfigFileDir())
-		sockFile, err := env.Eval(httpServerConfig.GetString("file", "/tmp/supervisord.sock"))
-		if err == nil {
-			cond := sync.NewCond(&sync.Mutex{})
-			cond.L.Lock()
-			defer cond.L.Unlock()
-			go s.xmlRPC.StartUnixHTTPServer(httpServerConfig.GetString("username", ""),
-				httpServerConfig.GetString("password", ""),
-				sockFile,
-				s,
-				func() {
-					cond.L.Lock()
-					cond.Signal()
-					cond.L.Unlock()
-				})
-			cond.Wait()
-		}
-	}
-
+	// NOTE: HTTP server startup has been moved to xmlrpc.go
+	// This method is temporarily stubbed out during refactoring
 }
 
 func (s *Supervisor) setSupervisordInfo() {

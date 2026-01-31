@@ -1,8 +1,9 @@
-package main
+package web
 
 import (
+	"github.com/sgaunet/supervisord/internal/supervisor"
 	"fmt"
-	"github.com/ochinchina/supervisord/logger"
+	"github.com/sgaunet/supervisord/logger"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -11,12 +12,12 @@ import (
 // Logtail tails the process log through http interface
 type Logtail struct {
 	router     *mux.Router
-	supervisor *Supervisor
+	supervisor *supervisor.Supervisor
 }
 
 // NewLogtail creates a Logtail object
-func NewLogtail(supervisor *Supervisor) *Logtail {
-	return &Logtail{router: mux.NewRouter(), supervisor: supervisor}
+func NewLogtail(s *supervisor.Supervisor) *Logtail {
+	return &Logtail{router: mux.NewRouter(), supervisor: s}
 }
 
 // CreateHandler creates http handlers to process the program stdout and stderr through http interface

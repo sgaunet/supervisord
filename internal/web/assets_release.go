@@ -1,7 +1,7 @@
 //go:build release
 // +build release
 
-package main
+package web
 
 import (
 	"embed"
@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-//go:embed webgui
+//go:embed ../../webgui
 var content embed.FS
 
 var HTTP http.FileSystem

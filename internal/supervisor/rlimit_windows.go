@@ -1,6 +1,6 @@
 // +build windows
 
-package main
+package supervisor
 
 func (s *Supervisor) checkRequiredResources() error {
 	return nil

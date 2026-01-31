@@ -1,10 +1,10 @@
-module github.com/ochinchina/supervisord/logger
+module github.com/sgaunet/supervisord/logger
 
 go 1.24
 
 require (
-	github.com/ochinchina/supervisord/events v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/faults v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/events v0.0.0-20250610055946-d5a5470d11af
+	github.com/sgaunet/supervisord/faults v0.0.0-20250610055946-d5a5470d11af
 )
 
 require (

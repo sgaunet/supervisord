@@ -1,23 +1,24 @@
-package main
+package rpc
 
 import (
+	"github.com/sgaunet/supervisord/internal/supervisor"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/ochinchina/supervisord/types"
+	"github.com/sgaunet/supervisord/types"
 )
 
 // SupervisorRestful the restful interface to control the programs defined in configuration file
 type SupervisorRestful struct {
 	router     *mux.Router
-	supervisor *Supervisor
+	supervisor *supervisor.Supervisor
 }
 
 // NewSupervisorRestful create a new SupervisorRestful object
-func NewSupervisorRestful(supervisor *Supervisor) *SupervisorRestful {
-	return &SupervisorRestful{router: mux.NewRouter(), supervisor: supervisor}
+func NewSupervisorRestful(s *supervisor.Supervisor) *SupervisorRestful {
+	return &SupervisorRestful{router: mux.NewRouter(), supervisor: s}
 }
 
 // CreateProgramHandler create http handler to process program related restful request
@@ -61,7 +62,7 @@ func (sr *SupervisorRestful) StartProgram(w http.ResponseWriter, req *http.Reque
 }
 
 func (sr *SupervisorRestful) _startProgram(program string) (bool, error) {
-	startArgs := StartProcessArgs{Name: program, Wait: true}
+	startArgs := supervisor.StartProcessArgs{Name: program, Wait: true}
 	result := struct{ Success bool }{false}
 	err := sr.supervisor.StartProcess(nil, &startArgs, &result)
 	return result.Success, err
@@ -102,7 +103,7 @@ func (sr *SupervisorRestful) StopProgram(w http.ResponseWriter, req *http.Reques
 }
 
 func (sr *SupervisorRestful) _stopProgram(programName string) (bool, error) {
-	stopArgs := StartProcessArgs{Name: programName, Wait: true}
+	stopArgs := supervisor.StartProcessArgs{Name: programName, Wait: true}
 	result := struct{ Success bool }{false}
 	err := sr.supervisor.StopProcess(nil, &stopArgs, &result)
 	return result.Success, err

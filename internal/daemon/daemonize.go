@@ -1,7 +1,7 @@
 //go:build !windows
 // +build !windows
 
-package main
+package daemon
 
 import (
 	"github.com/ochinchina/go-daemon"

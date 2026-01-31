@@ -13,8 +13,10 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/ochinchina/go-ini"
-	"github.com/ochinchina/supervisord/config"
-	"github.com/ochinchina/supervisord/logger"
+	"github.com/sgaunet/supervisord/config"
+	"github.com/sgaunet/supervisord/internal/daemon"
+	"github.com/sgaunet/supervisord/internal/supervisor"
+	"github.com/sgaunet/supervisord/logger"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -43,13 +45,13 @@ func init() {
 	log.SetLevel(log.DebugLevel)
 }
 
-func initSignals(s *Supervisor) {
+func initSignals(s *supervisor.Supervisor) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigs
 		log.WithFields(log.Fields{"signal": sig}).Info("receive a signal to stop all process & exit")
-		s.procMgr.StopAllProcesses()
+		s.GetManager().StopAllProcesses()
 		os.Exit(-1)
 	}()
 
@@ -136,7 +138,7 @@ func runServer() {
 		if len(options.Configuration) <= 0 {
 			options.Configuration, _ = findSupervisordConf()
 		}
-		s := NewSupervisor(options.Configuration)
+		s := supervisor.NewSupervisor(options.Configuration)
 		initSignals(s)
 		if _, _, _, sErr := s.Reload(true); sErr != nil {
 			panic(sErr)
@@ -165,8 +167,8 @@ func getSupervisordLogFile(configFile string) string {
 }
 
 func main() {
-	if BuildVersion != "" { VERSION = BuildVersion }
-	ReapZombie()
+	if BuildVersion != "" { supervisor.VERSION = BuildVersion }
+	daemon.ReapZombie()
 
 	// when execute `supervisord` without sub-command, it should start the server
 	parser.Command.SubcommandsOptional = true
@@ -175,7 +177,7 @@ func main() {
 			log.SetOutput(os.Stdout)
 			if options.Daemon {
 				logFile := getSupervisordLogFile(options.Configuration)
-				Daemonize(logFile, runServer)
+				daemon.Daemonize(logFile, runServer)
 			} else {
 				runServer()
 			}

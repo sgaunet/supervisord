@@ -1,6 +1,6 @@
 // +build freebsd
 
-package main
+package supervisor
 
 import (
 	"fmt"

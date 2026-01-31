@@ -141,10 +141,10 @@ func GenTemplate(writer io.Writer) error {
 	return err
 }
 
-func init() {
-	parser.AddCommand("init",
+// RegisterInitCommand registers the init command with the parser
+func RegisterInitCommand(p interface{ AddCommand(string, string, string, interface{}) (interface{}, error) }) {
+	p.AddCommand("init",
 		"initialize a template",
 		"The init subcommand writes the supported configurations to specified file",
 		&initTemplateCommand)
-
 }
