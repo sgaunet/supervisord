@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sgaunet/supervisord/config"
-	"github.com/sgaunet/supervisord/events"
-	"github.com/sgaunet/supervisord/faults"
-	"github.com/sgaunet/supervisord/logger"
-	"github.com/sgaunet/supervisord/process"
-	"github.com/sgaunet/supervisord/signals"
-	"github.com/sgaunet/supervisord/types"
-	"github.com/sgaunet/supervisord/util"
+	"github.com/sgaunet/supervisord/internal/config"
+	"github.com/sgaunet/supervisord/internal/events"
+	"github.com/sgaunet/supervisord/internal/faults"
+	"github.com/sgaunet/supervisord/internal/logger"
+	"github.com/sgaunet/supervisord/internal/process"
+	"github.com/sgaunet/supervisord/internal/signals"
+	"github.com/sgaunet/supervisord/internal/types"
+	"github.com/sgaunet/supervisord/internal/util"
 
 	log "github.com/sirupsen/logrus"
 )

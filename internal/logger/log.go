@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sgaunet/supervisord/events"
-	"github.com/sgaunet/supervisord/faults"
+	"github.com/sgaunet/supervisord/internal/events"
+	"github.com/sgaunet/supervisord/internal/faults"
 )
 
 // Logger the log interface to log program stdout/stderr logs to file

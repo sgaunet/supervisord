@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/sgaunet/supervisord/util"
+	"github.com/sgaunet/supervisord/internal/util"
 )
 
 // ProcessGroup manage the program and its group mapping

@@ -13,10 +13,10 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/ochinchina/go-ini"
-	"github.com/sgaunet/supervisord/config"
+	"github.com/sgaunet/supervisord/internal/config"
 	"github.com/sgaunet/supervisord/internal/daemon"
 	"github.com/sgaunet/supervisord/internal/supervisor"
-	"github.com/sgaunet/supervisord/logger"
+	"github.com/sgaunet/supervisord/internal/logger"
 	log "github.com/sirupsen/logrus"
 )
 

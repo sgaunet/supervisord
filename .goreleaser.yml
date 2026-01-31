@@ -6,11 +6,13 @@ before:
     # you may remove this if you don't need go generate
     #- go generate ./...
 builds:
-  - env:
+  - id: supervisord
+    env:
       - CGO_ENABLED=0
     main: ./cmd/supervisord
+    binary: supervisord
     ldflags:
-      - -X main.version={{.Version}}
+      - -X main.BuildVersion={{.Version}}
     goos:
       - linux
       - darwin
@@ -22,7 +24,22 @@ builds:
     goarm:
       - "6"
       - "7"
-    # dir: src
+  - id: pidproxy
+    env:
+      - CGO_ENABLED=0
+    main: ./cmd/pidproxy
+    binary: pidproxy
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "6"
+      - "7"
 
 archives:
   - name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'

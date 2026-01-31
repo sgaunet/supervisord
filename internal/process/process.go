@@ -17,10 +17,10 @@ import (
 
 	"github.com/mitchellh/go-ps"
 	"github.com/ochinchina/filechangemonitor"
-	"github.com/sgaunet/supervisord/config"
-	"github.com/sgaunet/supervisord/events"
-	"github.com/sgaunet/supervisord/logger"
-	"github.com/sgaunet/supervisord/signals"
+	"github.com/sgaunet/supervisord/internal/config"
+	"github.com/sgaunet/supervisord/internal/events"
+	"github.com/sgaunet/supervisord/internal/logger"
+	"github.com/sgaunet/supervisord/internal/signals"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )

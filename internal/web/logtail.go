@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/sgaunet/supervisord/internal/supervisor"
 	"fmt"
-	"github.com/sgaunet/supervisord/logger"
+	"github.com/sgaunet/supervisord/internal/logger"
 	"net/http"
 
 	"github.com/gorilla/mux"

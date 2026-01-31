@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/sgaunet/supervisord/util"
+	"github.com/sgaunet/supervisord/internal/util"
 )
 
 func createTmpFile() (string, error) {

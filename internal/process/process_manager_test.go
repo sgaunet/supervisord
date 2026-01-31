@@ -3,7 +3,7 @@ package process
 import (
 	"testing"
 
-	"github.com/sgaunet/supervisord/config"
+	"github.com/sgaunet/supervisord/internal/config"
 )
 
 var procs *Manager = NewManager()
