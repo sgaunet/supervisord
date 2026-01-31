@@ -1,10 +1,10 @@
 package process
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -110,7 +110,7 @@ func (tc *TCPChecker) start() {
 		b := make([]byte, 1024)
 		var err error
 		for {
-			tc.conn, err = net.Dial("tcp", net.JoinHostPort(tc.host, fmt.Sprintf("%d", tc.port)))
+			tc.conn, err = net.Dial("tcp", net.JoinHostPort(tc.host, strconv.Itoa(tc.port)))
 			if err == nil || tc.baseChecker.timeoutTime.Before(time.Now()) {
 				break
 			}

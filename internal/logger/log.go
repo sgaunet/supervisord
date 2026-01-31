@@ -174,9 +174,7 @@ func (l *FileLogger) ReadLog(offset int64, length int64) (string, error) {
 
 	if offset < 0 { // offset < 0 && length == 0
 		offset = fileLen + offset
-		if offset < 0 {
-			offset = 0
-		}
+		offset = max(offset, 0)
 		length = fileLen - offset
 	} else if length == 0 { // offset >= 0 && length == 0
 		if offset > fileLen {
@@ -364,8 +362,7 @@ func (l *ChanLogger) Write(p []byte) (int, error) {
 // Close ChanLogger
 func (l *ChanLogger) Close() error {
 	defer func() {
-		if err := recover(); err != nil {
-		}
+		_ = recover()
 	}()
 	close(l.channel)
 	return nil
@@ -542,6 +539,7 @@ func (se *StdLogEventEmitter) emitLogEvent(data string) {
 // BackgroundWriteCloser write data in background
 type BackgroundWriteCloser struct {
 	io.WriteCloser
+
 	logChannel  chan []byte
 	writeCloser io.WriteCloser
 }

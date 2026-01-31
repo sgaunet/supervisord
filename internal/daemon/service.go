@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ServiceCommand install/uninstall/start/stop supervisord service
+// ServiceCommand install/uninstall/start/stop supervisord service.
 type ServiceCommand struct {
 	Configuration string
 	EnvFile       string
@@ -15,7 +15,7 @@ type ServiceCommand struct {
 
 type program struct{}
 
-// Start supervised service
+// Start supervised service.
 func (p *program) Start(s service.Service) error {
 	go p.run()
 	return nil
@@ -109,7 +109,9 @@ func showUsage() {
 }
 
 // RegisterServiceCommand registers the service command with the parser
-func RegisterServiceCommand(p interface{ AddCommand(string, string, string, interface{}) (interface{}, error) }, serviceCmd *ServiceCommand) {
+func RegisterServiceCommand(p interface {
+	AddCommand(shortDescription string, longDescription string, data string, command any) (any, error)
+}, serviceCmd *ServiceCommand) {
 	_, _ = p.AddCommand("service",
 		"install/uninstall/start/stop service",
 		"install/uninstall/start/stop service",

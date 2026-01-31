@@ -13,13 +13,13 @@ const (
 	// BadArguments Bad argument result code for xml rpc.
 	BadArguments = 3
 
-	// SignatureUnsupported signature unsupported result code for xml rpc
+	// SignatureUnsupported signature unsupported result code for xml rpc.
 	SignatureUnsupported = 4
 
-	// ShutdownState shutdown state result code
+	// ShutdownState shutdown state result code.
 	ShutdownState = 6
 
-	// BadName bad name result code
+	// BadName bad name result code.
 	BadName = 10
 
 	// BadSignal bad signal result code

@@ -140,7 +140,6 @@ func (sr *SupervisorRestful) StopPrograms(w http.ResponseWriter, req *http.Reque
 		}
 		_, _ = w.Write([]byte("Success to stop the programs"))
 	}
-
 }
 
 // ReadStdoutLog read the stdout of given program
@@ -160,6 +159,7 @@ func (sr *SupervisorRestful) Shutdown(w http.ResponseWriter, req *http.Request) 
 func (sr *SupervisorRestful) Reload(w http.ResponseWriter, req *http.Request) {
 	defer func() { _ = req.Body.Close() }()
 
+	//nolint:dogsled // We only need the error return value
 	_, _, _, err := sr.supervisor.Reload(false)
 	r := map[string]bool{"success": err == nil}
 	if err := json.NewEncoder(w).Encode(&r); err != nil {

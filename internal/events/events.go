@@ -17,10 +17,10 @@ import (
 )
 
 const (
-	// EventSysVersion the event system version
+	// EventSysVersion the event system version.
 	EventSysVersion = "3.0"
 
-	// ProcCommonBeginStr the process communication begin
+	// ProcCommonBeginStr the process communication begin.
 	ProcCommonBeginStr = "<!--XSUPERVISOR:BEGIN-->"
 
 	// ProcCommonEndStr the process communication end
@@ -509,7 +509,6 @@ func (pec *ProcCommEventCapture) startCapture() {
 	}()
 }
 
-//nolint:ireturn // Factory pattern requires interface return
 func (pec *ProcCommEventCapture) captureEvent() Event {
 	pec.findBeginStr()
 	endPos := pec.findEndStr()

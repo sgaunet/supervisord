@@ -33,7 +33,6 @@ func NewStringExpression(envs ...string) *StringExpression {
 	}
 
 	return se
-
 }
 
 // Add adds environment variable (key,value)
@@ -62,7 +61,11 @@ func (se *StringExpression) Eval(s string) (string, error) {
 
 		// find the type of the variable
 		typ := end + 1
-		for typ < n && !((s[typ] >= 'a' && s[typ] <= 'z') || (s[typ] >= 'A' && s[typ] <= 'Z')) {
+		for typ < n {
+			ch := s[typ]
+			if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+				break
+			}
 			typ++
 		}
 

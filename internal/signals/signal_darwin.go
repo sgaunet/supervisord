@@ -3,7 +3,6 @@
 package signals
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -44,16 +43,15 @@ var signalMap = map[string]os.Signal{"SIGABRT": syscall.SIGABRT,
 	"SIGXCPU":   syscall.SIGXCPU,
 	"SIGXFSZ":   syscall.SIGXFSZ}
 
-// ToSignal convert a signal name to signal
+// ToSignal convert a signal name to signal.
 func ToSignal(signalName string) (os.Signal, error) {
 	if !strings.HasPrefix(signalName, "SIG") {
-		signalName = fmt.Sprintf("SIG%s", signalName)
+		signalName = "SIG" + signalName
 	}
 	if sig, ok := signalMap[signalName]; ok {
 		return sig, nil
 	}
 	return syscall.SIGTERM, nil
-
 }
 
 // Kill send signal to the process

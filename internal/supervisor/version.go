@@ -26,7 +26,9 @@ func (v VersionCommand) Execute(args []string) error {
 }
 
 // RegisterVersionCommand registers the version command with the parser
-func RegisterVersionCommand(parser interface{ AddCommand(string, string, string, interface{}) (interface{}, error) }) {
+func RegisterVersionCommand(parser interface {
+	AddCommand(shortDescription string, longDescription string, data string, command any) (any, error)
+}) {
 	_, _ = parser.AddCommand("version",
 		"show the version of supervisor",
 		"display the supervisor version",

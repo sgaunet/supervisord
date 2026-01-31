@@ -3,7 +3,7 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -74,10 +74,6 @@ func (c *Entry) GetPrograms() []string {
 	return make([]string, 0)
 }
 
-func (c *Entry) setGroup(group string) {
-	c.Group = group
-}
-
 // String dumps configuration as a string
 func (c *Entry) String() string {
 	buf := bytes.NewBuffer(make([]byte, 0))
@@ -139,19 +135,22 @@ func (c *Config) getIncludeFiles(cfg *ini.Ini) []string {
 		key, err := includeSection.GetValue("files")
 		if err == nil {
 			env := NewStringExpression("here", c.GetConfigFileDir())
-			files := strings.Fields(key)
+			files := make([]string, 0)
+			for field := range strings.FieldsSeq(key) {
+				files = append(files, field)
+			}
 			for _, fRaw := range files {
-				dir := c.GetConfigFileDir()
 				f, err := env.Eval(fRaw)
 				if err != nil {
 					continue
 				}
+				var dir string
 				if filepath.IsAbs(f) {
 					dir = filepath.Dir(f)
 				} else {
 					dir = filepath.Join(c.GetConfigFileDir(), filepath.Dir(f))
 				}
-				fileInfos, err := ioutil.ReadDir(dir)
+				fileInfos, err := os.ReadDir(dir)
 				if err == nil {
 					goPattern := toRegexp(filepath.Base(f))
 					for _, fileInfo := range fileInfos {
@@ -160,7 +159,6 @@ func (c *Config) getIncludeFiles(cfg *ini.Ini) []string {
 						}
 					}
 				}
-
 			}
 		}
 	}
@@ -196,7 +194,6 @@ func (c *Config) setProgramDefaultParams(cfg *ini.Ini) {
 					section.Add(key.Name(), key.ValueWithDefault(""))
 				}
 			}
-
 		}
 	}
 }
@@ -384,7 +381,7 @@ func parseEnv(s string) *map[string]string {
 
 func parseEnvFiles(s string) *map[string]string {
 	result := make(map[string]string)
-	for _, envFilePath := range strings.Split(s, ",") {
+	for envFilePath := range strings.SplitSeq(s, ",") {
 		envFilePath = strings.TrimSpace(envFilePath)
 		f, err := os.Open(envFilePath)
 		if err != nil {
@@ -402,9 +399,7 @@ func parseEnvFiles(s string) *map[string]string {
 			}).Error("Parse env file failed: " + envFilePath)
 			continue
 		}
-		for k, v := range r {
-			result[k] = v
-		}
+		maps.Copy(result, r)
 	}
 	return &result
 }
@@ -545,7 +540,6 @@ func (c *Entry) parse(section *ini.Section) {
 }
 
 func (c *Config) parseGroup(cfg *ini.Ini) {
-
 	// parse the group at first
 	for _, section := range cfg.Sections() {
 		if strings.HasPrefix(section.Name, "group:") {
@@ -591,7 +585,7 @@ func (c *Config) parseProgram(cfg *ini.Ini) []string {
 			}
 			procName, err := section.GetValue("process_name")
 			if numProcs > 1 {
-				if err != nil || strings.Index(procName, "%(process_num)") == -1 {
+				if err != nil || !strings.Contains(procName, "%(process_num)") {
 					log.WithFields(log.Fields{
 						"numprocs":     numProcs,
 						"process_name": procName,
@@ -607,13 +601,13 @@ func (c *Config) parseProgram(cfg *ini.Ini) []string {
 
 			for i := 1; i <= numProcs; i++ {
 				envs := NewStringExpression("program_name", programName,
-					"process_num", fmt.Sprintf("%d", i),
+					"process_num", strconv.Itoa(i),
 					"group_name", c.ProgramGroup.GetGroup(programName, programName),
 					"here", c.GetConfigFileDir())
 				envValue, err := section.GetValue("environment")
 				if err == nil {
 					for k, v := range *parseEnv(envValue) {
-						envs.Add(fmt.Sprintf("ENV_%s", k), v)
+						envs.Add("ENV_"+k, v)
 					}
 				}
 				cmd, err := envs.Eval(originalCmd)
@@ -636,8 +630,8 @@ func (c *Config) parseProgram(cfg *ini.Ini) []string {
 				}
 
 				section.Add("process_name", procName)
-				section.Add("numprocs_start", fmt.Sprintf("%d", i-1))
-				section.Add("process_num", fmt.Sprintf("%d", i))
+				section.Add("numprocs_start", strconv.Itoa(i-1))
+				section.Add("process_num", strconv.Itoa(i))
 				entry := c.createEntry(procName, c.GetConfigFileDir())
 				entry.parse(section)
 				entry.Name = prefix + procName

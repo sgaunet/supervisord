@@ -67,17 +67,17 @@ func NewEnvVarConversionError(varValue string) error {
 	return fmt.Errorf("%w: %s", ErrEnvVarConversion, varValue)
 }
 
-// NewTypeNotImplementedError creates an error for unimplemented type
+// NewTypeNotImplementedError creates an error for unimplemented type.
 func NewTypeNotImplementedError(typeName string) error {
 	return fmt.Errorf("%w: %v", ErrTypeNotImplemented, typeName)
 }
 
-// NewNoSuchKeyError creates an error for missing configuration key
+// NewNoSuchKeyError creates an error for missing configuration key.
 func NewNoSuchKeyError(keyName string) error {
 	return fmt.Errorf("%w: %s", ErrNoSuchKey, keyName)
 }
 
-// NewNegativeValueError creates an error for negative value
+// NewNegativeValueError creates an error for negative value.
 func NewNegativeValueError(keyName string) error {
 	return fmt.Errorf("%w for %s", ErrNegativeValue, keyName)
 }
@@ -152,5 +152,5 @@ func NewUnixSocketWriteError(path string) error {
 
 // NewResponseReadFailedError creates an error for failed response read
 func NewResponseReadFailedError(err error) error {
-	return fmt.Errorf("%w %s", ErrResponseReadFailed, err)
+	return fmt.Errorf("%w %w", ErrResponseReadFailed, err)
 }

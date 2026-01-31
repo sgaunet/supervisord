@@ -8,25 +8,26 @@ import (
 	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
-// find the position of byte ch in the string s start from offset
+// find the position of byte ch in the string s start from offset.
 //
 // return: -1 if byte ch is not found, >= offset if the ch is found
-// in the string s from offset
+// in the string s from offset.
 func findChar(s string, offset int, ch byte) int {
 	for i := offset; i < len(s); i++ {
-		if s[i] == '\\' {
+		switch s[i] {
+		case '\\':
 			i++
-		} else if s[i] == ch {
+		case ch:
 			return i
 		}
 	}
 	return -1
 }
 
-// skip all the white space and return the first position of non-space char
+// skip all the white space and return the first position of non-space char.
 //
 // return: the first position of non-space char or -1 if all the char
-// from offset are space
+// from offset are space.
 func skipSpace(s string, offset int) int {
 	for i := offset; i < len(s); i++ {
 		if !unicode.IsSpace(rune(s[i])) {
@@ -83,8 +84,7 @@ func parseCommand(command string) ([]string, error) {
 	return args, nil
 }
 
-// create command from string or []string
-//
+// create command from string or []string.
 func createCommand(command any) (*exec.Cmd, error) {
 	args := make([]string, 0)
 	var err error
@@ -112,10 +112,11 @@ func createCommand(command any) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func executeCommand(command any) ([]byte, error) {
+func executeCommand(command any) error {
 	cmd, err := createCommand(command)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return cmd.CombinedOutput()
+	_, err = cmd.CombinedOutput()
+	return err
 }

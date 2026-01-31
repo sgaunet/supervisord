@@ -85,9 +85,7 @@ func readPid(pidfile string) (int, error) {
 
 func startApplication(command string, args []string) {
 	cmd := exec.Command(command)
-	for _, arg := range args {
-		cmd.Args = append(cmd.Args, arg)
-	}
+	cmd.Args = append(cmd.Args, args...)
 
 	err := cmd.Start()
 

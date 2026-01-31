@@ -91,5 +91,4 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 	//	compositeLogger.RemoveLogger(chanLogger)
 	//	_ = chanLogger.Close()
 	//}
-
 }

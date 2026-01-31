@@ -3,6 +3,7 @@ package process
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"os/user"
@@ -33,27 +34,29 @@ type State int
 const (
 	// Stopped the stopped state
 	Stopped State = iota
+)
 
+const (
 	// Starting the starting state
-	Starting = 10
+	Starting State = 10
 
 	// Running the running state
-	Running = 20
+	Running State = 20
 
 	// Backoff the backoff state
-	Backoff = 30
+	Backoff State = 30
 
 	// Stopping the stopping state
-	Stopping = 40
+	Stopping State = 40
 
 	// Exited the Exited state
-	Exited = 100
+	Exited State = 100
 
 	// Fatal the Fatal state
-	Fatal = 200
+	Fatal State = 200
 
 	// Unknown the unknown state
-	Unknown = 1000
+	Unknown State = 1000
 )
 
 var scheduler *cron.Cron = nil
@@ -80,6 +83,8 @@ func (p State) String() string {
 		return "Exited"
 	case Fatal:
 		return "Fatal"
+	case Unknown:
+		return "Unknown"
 	default:
 		return "Unknown"
 	}
@@ -276,12 +281,10 @@ func (p *Process) GetStartTime() time.Time {
 // GetStopTime returns process stop time
 func (p *Process) GetStopTime() time.Time {
 	switch p.state {
-	case Starting:
-		fallthrough
-	case Running:
-		fallthrough
-	case Stopping:
+	case Starting, Running, Stopping:
 		return time.Unix(0, 0)
+	case Stopped, Backoff, Exited, Fatal, Unknown:
+		return p.stopTime
 	default:
 		return p.stopTime
 	}
@@ -317,12 +320,8 @@ func (p *Process) getRestartPause() int {
 
 func (p *Process) getStartRetries() int32 {
 	retries := p.config.GetInt("startretries", 3)
-	if retries < 0 {
-		retries = 0
-	}
-	if retries > 2147483647 { // Max int32
-		retries = 2147483647
-	}
+	retries = max(retries, 0)
+	retries = min(retries, math.MaxInt32)
 	// #nosec G115 - overflow protected by bounds check above
 	return int32(retries)
 }
@@ -450,7 +449,7 @@ func (p *Process) setProgramRestartChangeMonitor(programPath string) {
 			restart_cmd := p.config.GetString("restart_cmd_when_binary_changed", "")
 			s := p.config.GetString("restart_signal_when_binary_changed", "")
 			if len(restart_cmd) > 0 {
-				_, err := executeCommand(restart_cmd)
+				err := executeCommand(restart_cmd)
 				if err == nil {
 					log.WithFields(log.Fields{"program": p.GetName(), "command": restart_cmd}).Info("restart program with command successfully")
 				} else {
@@ -477,7 +476,7 @@ func (p *Process) setProgramRestartChangeMonitor(programPath string) {
 			restart_cmd := p.config.GetString("restart_cmd_when_file_changed", "")
 			s := p.config.GetString("restart_signal_when_file_changed", "")
 			if len(restart_cmd) > 0 {
-				_, err := executeCommand(restart_cmd)
+				err := executeCommand(restart_cmd)
 				if err == nil {
 					log.WithFields(log.Fields{"program": p.GetName(), "command": restart_cmd}).Info("restart program with command successfully")
 				} else {
@@ -507,7 +506,7 @@ func (p *Process) waitForExit(startSecs int64) {
 	defer p.lock.Unlock()
 	p.stopTime = time.Now()
 
-	// TODO: we didn't set eventlistener logger since it's stdout/stderr has been specifically managed.
+	// Note: we don't set eventlistener logger since its stdout/stderr has been specifically managed.
 	if p.StdoutLog != nil {
 		_ = p.StdoutLog.Close() // Ignore close error on exit
 	}
@@ -615,10 +614,7 @@ func (p *Process) run(finishCb func()) {
 			// the sleep time must be less than `stopwaitsecs`, here I set half of `stopwaitsecs`
 			// otherwise the logger will not be closed before SIGKILL is sent
 			halfWaitsecs := time.Duration(p.config.GetInt("stopwaitsecs", 10)/2) * time.Second
-			for {
-				if !p.isRunning() {
-					break
-				}
+			for p.isRunning() {
 				time.Sleep(halfWaitsecs)
 			}
 			if p.StdoutLog != nil {

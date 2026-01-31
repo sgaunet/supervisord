@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Daemonize run this process in daemon mode
+// Daemonize run this process in daemon mode.
 func Daemonize(logfile string, proc func()) {
 	context := daemon.Context{LogFileName: logfile, PidFileName: "supervisord.pid"}
 

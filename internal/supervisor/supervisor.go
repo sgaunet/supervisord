@@ -207,7 +207,6 @@ func getProcessInfo(proc *process.Process) *types.ProcessInfo {
 		StdoutLogfile: proc.GetStdoutLogfile(),
 		StderrLogfile: proc.GetStderrLogfile(),
 		Pid:           proc.GetPid()}
-
 }
 
 // GetAllProcessInfo get all the program information managed by supervisor
@@ -251,14 +250,13 @@ func (s *Supervisor) StartProcess(r *http.Request, args *StartProcessArgs, reply
 func (s *Supervisor) StartAllProcesses(r *http.Request, args *struct {
 	Wait bool `default:"true"`
 }, reply *struct{ RPCTaskResults []RPCTaskResult }) error {
-
 	finishedProcCh := make(chan *process.Process)
 
 	n := s.procMgr.AsyncForEachProcess(func(proc *process.Process) {
 		proc.Start(args.Wait)
 	}, finishedProcCh)
 
-	for i := 0; i < n; i++ {
+	for range n {
 		proc, ok := <-finishedProcCh
 		if ok {
 			processInfo := *getProcessInfo(proc)
@@ -284,7 +282,7 @@ func (s *Supervisor) StartProcessGroup(r *http.Request, args *StartProcessArgs, 
 		}
 	}, finishedProcCh)
 
-	for i := 0; i < n; i++ {
+	for range n {
 		proc, ok := <-finishedProcCh
 		if ok && proc.GetGroup() == args.Name {
 			reply.AllProcessInfo = append(reply.AllProcessInfo, *getProcessInfo(proc))
@@ -318,7 +316,7 @@ func (s *Supervisor) StopProcessGroup(r *http.Request, args *StartProcessArgs, r
 		}
 	}, finishedProcCh)
 
-	for i := 0; i < n; i++ {
+	for range n {
 		proc, ok := <-finishedProcCh
 		if ok && proc.GetGroup() == args.Name {
 			reply.AllProcessInfo = append(reply.AllProcessInfo, *getProcessInfo(proc))
@@ -337,7 +335,7 @@ func (s *Supervisor) StopAllProcesses(r *http.Request, args *struct {
 		proc.Stop(args.Wait)
 	}, finishedProcCh)
 
-	for i := 0; i < n; i++ {
+	for range n {
 		proc, ok := <-finishedProcCh
 		if ok {
 			processInfo := *getProcessInfo(proc)
@@ -442,7 +440,6 @@ func (s *Supervisor) Reload(restart bool) (addedGroup []string, changedGroup []s
 	if checkErr := s.checkRequiredResources(); checkErr != nil {
 		log.Error(checkErr)
 		os.Exit(1)
-
 	}
 	if err == nil {
 		s.setSupervisordInfo()
@@ -465,7 +462,6 @@ func (s *Supervisor) Reload(restart bool) (addedGroup []string, changedGroup []s
 	}
 	addedGroup, changedGroup, removedGroup = s.config.ProgramGroup.Sub(prevProgGroup)
 	return addedGroup, changedGroup, removedGroup, err
-
 }
 
 // WaitForExit waits for supervisord to exit
@@ -480,7 +476,6 @@ func (s *Supervisor) WaitForExit() {
 }
 
 func (s *Supervisor) createPrograms(prevPrograms []string) {
-
 	programs := s.config.GetProgramNames()
 	for _, entry := range s.config.GetPrograms() {
 		s.procMgr.CreateProcess(s.GetSupervisorID(), entry)
@@ -658,7 +653,6 @@ func (s *Supervisor) ClearProcessLogs(r *http.Request, args *struct{ Name string
 
 // ClearAllProcessLogs clears logs of all programs
 func (s *Supervisor) ClearAllProcessLogs(r *http.Request, args *struct{}, reply *struct{ RPCTaskResults []RPCTaskResult }) error {
-
 	s.procMgr.ForEachProcess(func(proc *process.Process) {
 		proc.StdoutLog.ClearAllLogFile()
 		proc.StderrLog.ClearAllLogFile()

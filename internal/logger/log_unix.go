@@ -170,21 +170,25 @@ func parseSysLogConfig(config string) (protocol string, host string, port int, e
 	host = ""
 	protocol = ""
 	port = 0
+	const (
+		protocolTCP = "tcp"
+		protocolUDP = "udp"
+	)
 	err = nil
 	switch len(fields) {
 	case 1:
 		host = fields[0]
 		port = 514
-		protocol = "udp"
+		protocol = protocolUDP
 	case 2:
 		switch fields[0] {
-		case "tcp":
+		case protocolTCP:
 			host = fields[1]
-			protocol = "tcp"
+			protocol = protocolTCP
 			port = 6514
-		case "udp":
+		case protocolUDP:
 			host = fields[1]
-			protocol = "udp"
+			protocol = protocolUDP
 			port = 514
 		default:
 			protocol = "udp"
@@ -232,5 +236,4 @@ func NewRemoteSysLogger(name string, config string, props map[string]string, log
 		logger.logWriter = NewBackendSysLogWriter(protocol, fmt.Sprintf("%s:%d", host, port), priority, name)
 	}
 	return logger
-
 }

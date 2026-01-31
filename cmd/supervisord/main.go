@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -187,13 +188,17 @@ func main() {
 	}
 
 	if _, err := parser.Parse(); err != nil {
-		flagsErr, ok := err.(*flags.Error)
-		if ok {
+		var flagsErr *flags.Error
+		if errors.As(err, &flagsErr) {
 			switch flagsErr.Type {
 			case flags.ErrHelp:
 				_, _ = fmt.Fprintln(os.Stdout, err)
 				os.Exit(0)
-			default:
+			case flags.ErrUnknown, flags.ErrExpectedArgument, flags.ErrUnknownFlag,
+				flags.ErrUnknownGroup, flags.ErrMarshal, flags.ErrNoArgumentForBool,
+				flags.ErrRequired, flags.ErrShortNameTooLong, flags.ErrDuplicatedFlag,
+				flags.ErrTag, flags.ErrCommandRequired, flags.ErrUnknownCommand,
+				flags.ErrInvalidChoice, flags.ErrInvalidTag:
 				_, _ = fmt.Fprintf(os.Stderr, "error when parsing command: %s\n", err)
 				os.Exit(1)
 			}
