@@ -1,0 +1,39 @@
+# https://taskfile.dev
+version: '3'
+vars:
+  BINFILE: supervisord
+
+tasks:
+  default:
+    desc: "List all tasks"
+    cmds:
+      - task -a
+
+  lint:
+    desc: "Run linter"
+    cmds:
+      - go generate ./...
+      - golangci-lint run
+  
+  coverage:
+    desc: "Generate coverage report"
+    cmds:
+      - go test -coverpkg=./... -coverprofile=profile.cov ./...
+      - |
+        if [ "$(uname)" = "Darwin" ]; then
+          sed -i '' '/cmd/d' profile.cov    # macOS version
+        else
+          sed -i '/cmd/d' profile.cov       # Linux version
+        fi
+      - go tool cover -func profile.cov | grep '^total:' | awk '{print $3}' | sed "s/%//"
+      - rm -f profile.cov
+
+  snapshot:
+    desc: "Create a snapshot"
+    cmds:
+      - GITLAB_TOKEN="" goreleaser --clean --snapshot
+    
+  release:
+    desc: "Create a release"
+    cmds:
+      - GITLAB_TOKEN="" goreleaser --clean
