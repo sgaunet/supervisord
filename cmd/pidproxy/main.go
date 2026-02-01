@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -97,7 +98,8 @@ func readPid(pidfile string) (int, error) {
 }
 
 func startApplication(command string, args []string) {
-	cmd := exec.Command(command)
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, command)
 	cmd.Args = append(cmd.Args, args...)
 
 	err := cmd.Start()

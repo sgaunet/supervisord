@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"syscall"
@@ -101,8 +102,9 @@ func createCommand(command any) (*exec.Cmd, error) {
 		return nil, apperrors.ErrEmptyCommand
 	}
 
+	ctx := context.Background()
 	// #nosec G204 - command args come from supervisor configuration file which is trusted
-	cmd := exec.Command(args[0])
+	cmd := exec.CommandContext(ctx, args[0])
 	if len(args) > 1 {
 		cmd.Args = args
 	}

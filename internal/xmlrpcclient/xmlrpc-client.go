@@ -77,9 +77,9 @@ func (r *XMLRPCClient) URL() string {
 	return r.serverurl + "/RPC2"
 }
 
-func (r *XMLRPCClient) createHTTPRequest(method string, url string, data any) (*http.Request, error) {
+func (r *XMLRPCClient) createHTTPRequest(ctx context.Context, method string, url string, data any) (*http.Request, error) {
 	buf, _ := xml.EncodeClientRequest(method, data)
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(buf))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(buf))
 	if err != nil {
 		if r.verbose {
 			fmt.Println("Fail to create request:", err)
@@ -110,16 +110,17 @@ func (r *XMLRPCClient) processResponse(resp *http.Response, processBody func(io.
 }
 
 func (r *XMLRPCClient) postInetHTTP(method string, url string, data any, processBody func(io.ReadCloser, error)) {
-	req, err := r.createHTTPRequest(method, url, data)
+	ctx := context.Background()
+	if r.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, r.timeout)
+		defer cancel()
+	}
+
+	req, err := r.createHTTPRequest(ctx, method, url, data)
 	if err != nil {
 		processBody(emptyReader, err)
 		return
-	}
-
-	if r.timeout > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
-		defer cancel()
-		req = req.WithContext(ctx)
 	}
 
 	resp, err := http.DefaultClient.Do(req) //nolint:bodyclose // Body is closed in processResponse
@@ -131,13 +132,12 @@ func (r *XMLRPCClient) postInetHTTP(method string, url string, data any, process
 }
 
 func (r *XMLRPCClient) postUnixHTTP(method string, path string, data any, processBody func(io.ReadCloser, error)) {
-	var conn net.Conn
-	var err error
+	ctx := context.Background()
+	dialer := &net.Dialer{}
 	if r.timeout > 0 {
-		conn, err = net.DialTimeout("unix", path, r.timeout)
-	} else {
-		conn, err = net.Dial("unix", path)
+		dialer.Timeout = r.timeout
 	}
+	conn, err := dialer.DialContext(ctx, "unix", path)
 	if err != nil {
 		processBody(emptyReader, apperrors.NewUnixSocketFailedError(r.serverurl, err))
 		return
@@ -150,7 +150,7 @@ func (r *XMLRPCClient) postUnixHTTP(method string, path string, data any, proces
 			return
 		}
 	}
-	req, err := r.createHTTPRequest(method, "/RPC2", data)
+	req, err := r.createHTTPRequest(ctx, method, "/RPC2", data)
 
 	if err != nil {
 		processBody(emptyReader, apperrors.NewHTTPCreateFailedError(err))

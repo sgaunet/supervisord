@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"crypto/sha1" //nolint:gosec
 	"encoding/hex"
 	"fmt"
@@ -201,7 +202,9 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 	mux := http.NewServeMux()
 	p.registerHTTPHandlers(mux, user, password, s)
 
-	listener, err := net.Listen(protocol, listenAddr)
+	ctx := context.Background()
+	lc := &net.ListenConfig{}
+	listener, err := lc.Listen(ctx, protocol, listenAddr)
 	if err == nil {
 		log.WithFields(log.Fields{"addr": listenAddr, "protocol": protocol}).Info("success to listen on address")
 		p.listeners[protocol] = listener

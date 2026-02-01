@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -443,7 +444,8 @@ func (lc *LogtailCommand) tailLog(program string, dev string) error {
 		return err
 	}
 	url := fmt.Sprintf("%s/logtail/%s/%s", ctlCommand.getServerURL(), program, dev)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request for %s: %w", url, err)
 	}

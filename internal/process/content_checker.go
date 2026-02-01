@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"os/exec"
@@ -79,8 +80,9 @@ func NewScriptChecker(args []string) *ScriptChecker {
 
 // Check return code of the script. If return code is 0, check is successful.
 func (sc *ScriptChecker) Check() bool {
+	ctx := context.Background()
 	// #nosec G204 - command args come from supervisor configuration file which is trusted
-	cmd := exec.Command(sc.args[0])
+	cmd := exec.CommandContext(ctx, sc.args[0])
 	if len(sc.args) > 1 {
 		cmd.Args = sc.args
 	}
@@ -110,8 +112,10 @@ func (tc *TCPChecker) start() {
 		const bufferSize = 1024
 		b := make([]byte, bufferSize)
 		var err error
+		ctx := context.Background()
+		dialer := &net.Dialer{}
 		for {
-			tc.conn, err = net.Dial("tcp", net.JoinHostPort(tc.host, strconv.Itoa(tc.port)))
+			tc.conn, err = dialer.DialContext(ctx, "tcp", net.JoinHostPort(tc.host, strconv.Itoa(tc.port)))
 			if err == nil || tc.baseChecker.timeoutTime.Before(time.Now()) {
 				break
 			}
@@ -154,7 +158,13 @@ func NewHTTPChecker(url string, timeout int) *HTTPChecker {
 func (hc *HTTPChecker) Check() bool {
 	for {
 		if hc.timeoutTime.After(time.Now()) {
-			resp, err := http.Get(hc.url)
+			ctx := context.Background()
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, hc.url, nil)
+			if err != nil {
+				continue
+			}
+			client := &http.Client{}
+			resp, err := client.Do(req)
 			if err == nil {
 				defer func() { _ = resp.Body.Close() }()
 				return resp.StatusCode >= 200 && resp.StatusCode < 300
