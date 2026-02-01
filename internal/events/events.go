@@ -1,3 +1,4 @@
+// Package events implements the Supervisor 3.x event protocol for process state change notifications.
 package events
 
 import (
@@ -519,7 +520,7 @@ func (pec *ProcCommEventCapture) startCapture() {
 	}()
 }
 
-//nolint:ireturn // Factory pattern requires interface return
+//nolint:ireturn // Factory method returning interface type for polymorphism
 func (pec *ProcCommEventCapture) captureEvent() Event {
 	pec.findBeginStr()
 	endPos := pec.findEndStr()

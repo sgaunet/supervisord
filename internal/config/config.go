@@ -1,3 +1,5 @@
+// Package config provides configuration parsing and management for supervisord.
+// It handles INI-style configuration files with template evaluation and program group management.
 package config
 
 import (
@@ -490,7 +492,7 @@ func (c *Entry) GetString(key string, defValue string) string {
 }
 
 // GetStringExpression returns value of key as a string and attempts to parse it with StringExpression.
-func (c *Entry) GetStringExpression(key string, defValue string) string {
+func (c *Entry) GetStringExpression(key string, _ string) string {
 	s, ok := c.keyValues[key]
 	if !ok || s == "" {
 		return ""

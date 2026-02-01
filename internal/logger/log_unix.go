@@ -127,7 +127,7 @@ func NewBackendSysLogWriter(network, raddr string, priority syslog.Priority, tag
 
 func (bs *BackendSysLogWriter) start() {
 	go func() {
-		var writer *syslog.Writer = nil
+		var writer *syslog.Writer
 		for {
 			b, ok := <-bs.logChannel
 			// if channel is closed

@@ -357,7 +357,7 @@ func (r *XMLRPCClient) StartProcess(process string, wait bool) (reply types.Bool
 			if !errors.As(err, &ee) {
 				return
 			}
-			if ee.Code == ALREADY_STARTED {
+			if ee.Code == AlreadyStarted {
 				err = nil
 			}
 		}
@@ -385,7 +385,7 @@ func (r *XMLRPCClient) StopProcess(process string, wait bool) (reply types.Boole
 			if !errors.As(err, &ee) {
 				return
 			}
-			if ee.Code == NOT_RUNNING {
+			if ee.Code == NotRunning {
 				err = nil
 			}
 		}

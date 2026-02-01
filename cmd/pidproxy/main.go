@@ -1,3 +1,5 @@
+// Package main implements pidproxy, a signal forwarding proxy for daemonizing processes.
+// It reads a PID from a pidfile and forwards signals to that process.
 package main
 
 import (

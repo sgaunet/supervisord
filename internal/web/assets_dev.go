@@ -1,5 +1,6 @@
 //go:build !release
 
+// Package web - assets_dev.go provides development-time web asset loading from disk.
 package web
 
 import (

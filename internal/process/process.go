@@ -1,3 +1,4 @@
+// Package process implements process lifecycle management including state machine, dependencies, and auto-restart.
 package process
 
 import (
@@ -59,7 +60,7 @@ const (
 	Unknown State = 1000
 )
 
-var scheduler *cron.Cron = nil
+var scheduler *cron.Cron
 
 func init() {
 	scheduler = cron.New(cron.WithSeconds())
@@ -126,6 +127,7 @@ func NewProcess(supervisorID string, config *config.Entry) *Process {
 	return proc
 }
 
+// GetConfig returns the configuration entry for this process.
 func (p *Process) GetConfig() *config.Entry {
 	return p.config
 }
@@ -205,15 +207,14 @@ func (p *Process) Start(wait bool) {
 }
 
 // GetName returns name of program or event listener.
-//nolint:gocritic // Boolean conditions not suitable for switch
 func (p *Process) GetName() string {
 	if p.config.IsProgram() {
 		return p.config.GetProgramName()
-	} else if p.config.IsEventListener() {
-		return p.config.GetEventListenerName()
-	} else {
-		return ""
 	}
+	if p.config.IsEventListener() {
+		return p.config.GetEventListenerName()
+	}
+	return ""
 }
 
 // GetGroup returns group the program belongs to.
@@ -471,7 +472,7 @@ func (p *Process) setProgramRestartChangeMonitor(programPath string) {
 		if err != nil {
 			absPath = programPath
 		}
-		AddProgramChangeMonitor(absPath, func(path string, mode filechangemonitor.FileChangeMode) {
+		AddProgramChangeMonitor(absPath, func(_ string, _ filechangemonitor.FileChangeMode) {
 			log.WithFields(log.Fields{"program": p.GetName()}).Info("program is changed, restart it")
 			restartCmd := p.config.GetString("restart_cmd_when_binary_changed", "")
 			restartSignal := p.config.GetString("restart_signal_when_binary_changed", "")
@@ -485,7 +486,7 @@ func (p *Process) setProgramRestartChangeMonitor(programPath string) {
 		if err != nil {
 			absDir = dirMonitor
 		}
-		AddConfigChangeMonitor(absDir, filePattern, func(path string, mode filechangemonitor.FileChangeMode) {
+		AddConfigChangeMonitor(absDir, filePattern, func(_ string, _ filechangemonitor.FileChangeMode) {
 			log.WithFields(log.Fields{"program": p.GetName()}).Info("configure file for program is changed, restart it")
 			restartCmd := p.config.GetString("restart_cmd_when_file_changed", "")
 			restartSignal := p.config.GetString("restart_signal_when_file_changed", "")
@@ -495,8 +496,7 @@ func (p *Process) setProgramRestartChangeMonitor(programPath string) {
 }
 
 // wait for the started program exit.
-//nolint:unparam // startSecs may be used in future
-func (p *Process) waitForExit(startSecs int64) {
+func (p *Process) waitForExit(_ int64) {
 	_ = p.cmd.Wait() // Error already logged via ProcessState
 	if p.cmd.ProcessState != nil {
 		log.WithFields(log.Fields{"program": p.GetName()}).Infof("program stopped with status:%v", p.cmd.ProcessState)
@@ -957,18 +957,18 @@ func (p *Process) createLogger(logFile string, maxBytesKey string, backupsKey st
 	maxBytes := int64(p.config.GetBytes(maxBytesKey, defaultMaxBytes))
 	backups := p.config.GetInt(backupsKey, defaultBackups)
 	props := make(map[string]string)
-	syslog_facility := p.config.GetString("syslog_facility", "")
-	syslog_tag := p.config.GetString("syslog_tag", "")
-	syslog_priority := p.config.GetString(priorityKey, "")
+	syslogFacility := p.config.GetString("syslog_facility", "")
+	syslogTag := p.config.GetString("syslog_tag", "")
+	syslogPriority := p.config.GetString(priorityKey, "")
 
-	if len(syslog_facility) > 0 {
-		props["syslog_facility"] = syslog_facility
+	if len(syslogFacility) > 0 {
+		props["syslog_facility"] = syslogFacility
 	}
-	if len(syslog_tag) > 0 {
-		props["syslog_tag"] = syslog_tag
+	if len(syslogTag) > 0 {
+		props["syslog_tag"] = syslogTag
 	}
-	if len(syslog_priority) > 0 {
-		props["syslog_priority"] = syslog_priority
+	if len(syslogPriority) > 0 {
+		props["syslog_priority"] = syslogPriority
 	}
 
 	return logger.NewLogger(p.GetName(), logFile, logger.NewNullLocker(), maxBytes, backups, props, eventEmitter)
@@ -1153,7 +1153,7 @@ func (p *Process) Stop(wait bool) {
 		log.WithFields(log.Fields{"program": p.GetName()}).Error("Cannot set stopasgroup=true and killasgroup=false")
 	}
 
-	var stopped int32 = 0
+	var stopped int32
 	go p.sendStopSignals(sigs, stopasgroup, waitsecs, killwaitsecs, killasgroup, &stopped)
 	if wait {
 		for atomic.LoadInt32(&stopped) == 0 {

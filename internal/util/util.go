@@ -1,3 +1,4 @@
+//nolint:revive // Package "util" is standard for utility functions in Go projects
 package util
 
 import "slices"

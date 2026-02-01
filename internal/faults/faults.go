@@ -1,3 +1,4 @@
+// Package faults defines XML-RPC fault codes and error types for supervisord protocol compatibility.
 package faults
 
 import (

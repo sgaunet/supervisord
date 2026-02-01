@@ -1,3 +1,4 @@
+// Package main - config_template.go provides default configuration template generation.
 package main
 
 import (
@@ -125,8 +126,7 @@ type InitTemplateCommand struct {
 var initTemplateCommand InitTemplateCommand
 
 // Execute execute the init command.
-//nolint:unparam // args required by flags interface
-func (x *InitTemplateCommand) Execute(args []string) error {
+func (x *InitTemplateCommand) Execute(_ []string) error {
 	f, err := os.Create(x.OutFile)
 	if err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)

@@ -1,5 +1,6 @@
 //go:build !windows
 
+// Package daemon provides process daemonization and zombie reaping functionality.
 package daemon
 
 import (

@@ -306,9 +306,8 @@ func (x *CtlCommand) getPid(rpcc *xmlrpcclient.XMLRPCClient, process string) {
 	if err != nil {
 		fmt.Printf("program '%s' not found\n", process)
 		os.Exit(1)
-	} else {
-		fmt.Printf("%d\n", procInfo.Pid)
 	}
+	fmt.Printf("%d\n", procInfo.Pid)
 }
 
 func (x *CtlCommand) getProcessInfo(rpcc *xmlrpcclient.XMLRPCClient, process string) (types.ProcessInfo, error) {
@@ -404,13 +403,13 @@ func (rc *RestartCommand) Execute(args []string) error {
 }
 
 // Execute shutdown the supervisor.
-func (sc *ShutdownCommand) Execute(args []string) error {
+func (sc *ShutdownCommand) Execute(_ []string) error {
 	ctlCommand.shutdown(ctlCommand.createRPCClient())
 	return nil
 }
 
 // Execute stop the running programs and reload the supervisor configuration.
-func (rc *ReloadCommand) Execute(args []string) error {
+func (rc *ReloadCommand) Execute(_ []string) error {
 	ctlCommand.reload(ctlCommand.createRPCClient())
 	return nil
 }

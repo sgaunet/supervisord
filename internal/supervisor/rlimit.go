@@ -1,5 +1,6 @@
 // +build !windows,!freebsd
 
+// Package supervisor provides the core supervisord functionality including process management and resource limits.
 package supervisor
 
 import (

@@ -129,7 +129,7 @@ func GetProgramConfigPath(programName string, s *supervisor.Supervisor) string {
 	return res
 }
 
-func readLogHtml(writer http.ResponseWriter, request *http.Request) {
+func readLogHTML(writer http.ResponseWriter, _ *http.Request) {
 	b, err := ReadFile("webgui/log.html")
 	if err != nil {
 		writer.WriteHeader(http.StatusNotFound)
@@ -157,9 +157,9 @@ func (p *XMLRPC) registerHTTPHandlers(mux *http.ServeMux, user string, password 
 	mux.Handle("/", newHTTPBasicAuth(user, password, webguiHandler))
 
 	// conf 文件
-	confHandler := web.NewConfApi(s).CreateHandler()
+	confHandler := web.NewConfAPI(s).CreateHandler()
 	mux.Handle("/conf/", newHTTPBasicAuth(user, password, confHandler))
-	mux.HandleFunc("/confFile", func(writer http.ResponseWriter, request *http.Request) {
+	mux.HandleFunc("/confFile", func(writer http.ResponseWriter, _ *http.Request) {
 		b, err := ReadFile("webgui/conf.html")
 		if err != nil {
 			writer.WriteHeader(http.StatusNotFound)
@@ -171,7 +171,7 @@ func (p *XMLRPC) registerHTTPHandlers(mux *http.ServeMux, user string, password 
 	})
 
 	// 读log.html文件
-	mux.HandleFunc("/log", readLogHtml)
+	mux.HandleFunc("/log", readLogHTML)
 
 	mux.Handle("/metrics", promhttp.Handler())
 

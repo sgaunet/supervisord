@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var BuildVersion string = ""
+var BuildVersion string
 
 // Options the command line options.
 type Options struct {
@@ -165,9 +165,8 @@ func getSupervisordLogFile(configFile string) string {
 	logFile, err = env.Eval(logFile)
 	if err == nil {
 		return logFile
-	} else {
-		return filepath.Join(".", "supervisord.log")
 	}
+	return filepath.Join(".", "supervisord.log")
 }
 
 func main() {

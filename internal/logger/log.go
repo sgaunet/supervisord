@@ -1,3 +1,4 @@
+// Package logger provides multi-target logging functionality with file rotation and syslog support.
 package logger
 
 import (
@@ -81,7 +82,7 @@ func NewFileLogger(name string, maxSize int64, backups int, logEventEmitter LogE
 }
 
 // SetPid sets pid of the program.
-func (l *FileLogger) SetPid(pid int) {
+func (l *FileLogger) SetPid(_ int) {
 	// NOTHING TO DO
 }
 
@@ -325,7 +326,7 @@ func NewNullLogger(logEventEmitter LogEventEmitter) *NullLogger {
 }
 
 // SetPid sets pid of program.
-func (l *NullLogger) SetPid(pid int) {
+func (l *NullLogger) SetPid(_ int) {
 	// NOTHING TO DO
 }
 
@@ -341,12 +342,12 @@ func (l *NullLogger) Close() error {
 }
 
 // ReadLog returns error for NullLogger.
-func (l *NullLogger) ReadLog(offset int64, length int64) (string, error) {
+func (l *NullLogger) ReadLog(_ int64, _ int64) (string, error) {
 	return "", faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
 // ReadTailLog returns error for NullLogger.
-func (l *NullLogger) ReadTailLog(offset int64, length int64) (string, int64, bool, error) {
+func (l *NullLogger) ReadTailLog(_ int64, _ int64) (string, int64, bool, error) {
 	return "", 0, false, faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
@@ -366,7 +367,7 @@ func NewChanLogger(channel chan []byte) *ChanLogger {
 }
 
 // SetPid sets program pid.
-func (l *ChanLogger) SetPid(pid int) {
+func (l *ChanLogger) SetPid(_ int) {
 	// NOTHING TO DO
 }
 
@@ -386,12 +387,12 @@ func (l *ChanLogger) Close() error {
 }
 
 // ReadLog returns error for ChanLogger.
-func (l *ChanLogger) ReadLog(offset int64, length int64) (string, error) {
+func (l *ChanLogger) ReadLog(_ int64, _ int64) (string, error) {
 	return "", faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
 // ReadTailLog returns error for ChanLogger.
-func (l *ChanLogger) ReadTailLog(offset int64, length int64) (string, int64, bool, error) {
+func (l *ChanLogger) ReadTailLog(_ int64, _ int64) (string, int64, bool, error) {
 	return "", 0, false, faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
@@ -540,7 +541,7 @@ func NewNullLogEventEmitter() *NullLogEventEmitter {
 }
 
 // emitLogEvent emit the log.
-func (ne *NullLogEventEmitter) emitLogEvent(data string) {
+func (ne *NullLogEventEmitter) emitLogEvent(_ string) {
 }
 
 // StdLogEventEmitter emit the Stdout/Stderr LogEvent.

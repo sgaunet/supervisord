@@ -1,5 +1,6 @@
 //go:build darwin
 
+// Package signals provides signal name to os.Signal mapping for process control.
 package signals
 
 import (

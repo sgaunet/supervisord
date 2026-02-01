@@ -1,3 +1,4 @@
+// Package rpc provides REST and XML-RPC interfaces for controlling supervisord.
 package rpc
 
 import (
@@ -44,7 +45,7 @@ func (sr *SupervisorRestful) CreateSupervisorHandler() http.Handler {
 // ListProgram list the status of all the programs.
 //
 // json array to present the status of all programs.
-func (sr *SupervisorRestful) ListProgram(w http.ResponseWriter, req *http.Request) {
+func (sr *SupervisorRestful) ListProgram(w http.ResponseWriter, _ *http.Request) {
 	result := struct{ AllProcessInfo []types.ProcessInfo }{make([]types.ProcessInfo, 0)}
 	if sr.supervisor.GetAllProcessInfo(nil, nil, &result) == nil {
 		if err := json.NewEncoder(w).Encode(result.AllProcessInfo); err != nil {
@@ -150,7 +151,7 @@ func (sr *SupervisorRestful) StopPrograms(w http.ResponseWriter, req *http.Reque
 }
 
 // ReadStdoutLog read the stdout of given program.
-func (sr *SupervisorRestful) ReadStdoutLog(w http.ResponseWriter, req *http.Request) {
+func (sr *SupervisorRestful) ReadStdoutLog(_ http.ResponseWriter, _ *http.Request) {
 }
 
 // Shutdown the supervisor itself.

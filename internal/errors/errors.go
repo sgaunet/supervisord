@@ -1,3 +1,4 @@
+//nolint:revive // Package name matches domain purpose (application errors), stdlib "errors" imported with same name
 package errors
 
 import (

@@ -16,7 +16,7 @@ type ServiceCommand struct {
 type program struct{}
 
 // Start supervised service.
-func (p *program) Start(s service.Service) error {
+func (p *program) Start(_ service.Service) error {
 	go p.run()
 	return nil
 }
@@ -24,7 +24,7 @@ func (p *program) Start(s service.Service) error {
 func (p *program) run() {}
 
 // Stop supervised service.
-func (p *program) Stop(s service.Service) error {
+func (p *program) Stop(_ service.Service) error {
 	// Stop should not block. Return with a few seconds.
 	return nil
 }

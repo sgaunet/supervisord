@@ -1,3 +1,4 @@
+//nolint:revive // Package "types" is standard for shared type definitions in Go projects
 package types
 
 import (

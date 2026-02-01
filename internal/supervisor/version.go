@@ -4,10 +4,10 @@ import (
 	"fmt"
 )
 
-// VERSION the version of supervisor.
-
+// VERSION is the version of supervisor.
 var (
 	VERSION = "v0.7.3"
+	// COMMIT is the git commit hash for this build.
 	COMMIT  = ""
 )
 
@@ -19,7 +19,7 @@ type VersionCommand struct {
 var versionCommand VersionCommand
 
 // Execute implement Execute() method defined in flags.Commander interface, executes the given command.
-func (v VersionCommand) Execute(args []string) error {
+func (v VersionCommand) Execute(_ []string) error {
 	fmt.Println("Version:", VERSION)
 	fmt.Println(" Commit:", COMMIT)
 	return nil
