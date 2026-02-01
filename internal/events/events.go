@@ -23,18 +23,18 @@ const (
 	// ProcCommonBeginStr the process communication begin.
 	ProcCommonBeginStr = "<!--XSUPERVISOR:BEGIN-->"
 
-	// ProcCommonEndStr the process communication end
+	// ProcCommonEndStr the process communication end.
 	ProcCommonEndStr = "<!--XSUPERVISOR:END-->"
 )
 
-// Event the event interface definition
+// Event the event interface definition.
 type Event interface {
 	GetSerial() uint64
 	GetType() string
 	GetBody() string
 }
 
-// BaseEvent the base event, all other events should inherit this BaseEvent to implement the Event interface
+// BaseEvent the base event, all other events should inherit this BaseEvent to implement the Event interface.
 type BaseEvent struct {
 	serial    uint64
 	eventType string
@@ -145,6 +145,7 @@ func (el *EventListener) start() {
 				log.WithFields(log.Fields{"eventListener": el.pool}).Warn("fail to read from event listener, the event listener may exit")
 				break
 			}
+		eventLoop:
 			for {
 				if b, ok := el.getFirstEvent(); ok {
 					_, err := el.stdout.Write(b)
@@ -157,14 +158,15 @@ func (el *EventListener) start() {
 						log.WithFields(log.Fields{"eventListener": el.pool}).Warn("fail to read result")
 						break
 					}
-					if result == "OK" { // remove the event if succeed
+					switch result {
+					case "OK": // remove the event if succeed
 						log.WithFields(log.Fields{"eventListener": el.pool}).Info("succeed to send the event")
 						el.removeFirstEvent()
-						break
-					} else if result == "FAIL" {
+						break eventLoop
+					case "FAIL":
 						log.WithFields(log.Fields{"eventListener": el.pool}).Warn("fail to send the event")
-						break
-					} else {
+						break eventLoop
+					default:
 						log.WithFields(log.Fields{"eventListener": el.pool, "result": result}).Warn("unknown result from listener")
 					}
 				}
@@ -509,6 +511,7 @@ func (pec *ProcCommEventCapture) startCapture() {
 	}()
 }
 
+//nolint:ireturn // Factory pattern requires returning interface
 func (pec *ProcCommEventCapture) captureEvent() Event {
 	pec.findBeginStr()
 	endPos := pec.findEndStr()

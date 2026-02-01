@@ -9,12 +9,12 @@ import (
 	"time"
 )
 
-// ContentChecker defines check interface
+// ContentChecker defines check interface.
 type ContentChecker interface {
 	Check() bool
 }
 
-// BaseChecker basic implementation of ContentChecker
+// BaseChecker basic implementation of ContentChecker.
 type BaseChecker struct {
 	data     string
 	includes []string
@@ -23,7 +23,7 @@ type BaseChecker struct {
 	notifyChannel chan string
 }
 
-// NewBaseChecker creates BaseChecker object
+// NewBaseChecker creates BaseChecker object.
 func NewBaseChecker(includes []string, timeout int) *BaseChecker {
 	return &BaseChecker{data: "",
 		includes:      includes,

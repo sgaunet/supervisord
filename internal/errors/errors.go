@@ -82,45 +82,45 @@ func NewNegativeValueError(keyName string) error {
 	return fmt.Errorf("%w for %s", ErrNegativeValue, keyName)
 }
 
-// ErrInvalidArguments is the base error for invalid arguments
+// ErrInvalidArguments is the base error for invalid arguments.
 var ErrInvalidArguments = errors.New("invalid arguments")
 
-// NewInvalidArgumentsError creates an error for invalid CLI arguments
+// NewInvalidArgumentsError creates an error for invalid CLI arguments.
 func NewInvalidArgumentsError(usage string) error {
 	return fmt.Errorf("%w\nUsage: %s", ErrInvalidArguments, usage)
 }
 
-// NewFailedToGetLimitError creates an error for failed limit retrieval
+// NewFailedToGetLimitError creates an error for failed limit retrieval.
 func NewFailedToGetLimitError(resourceName string) error {
 	return fmt.Errorf("%w: %s", ErrFailedToGetLimit, resourceName)
 }
 
-// NewLimitExceedsHardError creates an error when limit exceeds hard limit
+// NewLimitExceedsHardError creates an error when limit exceeds hard limit.
 func NewLimitExceedsHardError(resourceName string, requested, hardLimit int64) error {
 	return fmt.Errorf("%w: %s %d is greater than Hard limit %d", ErrLimitExceedsHard, resourceName, requested, hardLimit)
 }
 
-// NewFailedToSetLimitError creates an error for failed limit setting
+// NewFailedToSetLimitError creates an error for failed limit setting.
 func NewFailedToSetLimitError(resourceName string, value int64) error {
 	return fmt.Errorf("%w: %s to %d", ErrFailedToSetLimit, resourceName, value)
 }
 
-// NewBadNameError creates an error for invalid process name
+// NewBadNameError creates an error for invalid process name.
 func NewBadNameError(processName string) error {
 	return fmt.Errorf("%w: no process named %s", ErrBadName, processName)
 }
 
-// NewProcessNotFoundError creates an error for process not found
+// NewProcessNotFoundError creates an error for process not found.
 func NewProcessNotFoundError(processName string) error {
 	return fmt.Errorf("%w: %s", ErrProcessNotFound, processName)
 }
 
-// NewInvalidSignalTypeError creates an error for invalid signal type
+// NewInvalidSignalTypeError creates an error for invalid signal type.
 func NewInvalidSignalTypeError(sigType any) error {
 	return fmt.Errorf("%w: %T", ErrInvalidSignalType, sigType)
 }
 
-// NewNoProcessError creates an error for no such process
+// NewNoProcessError creates an error for no such process.
 func NewNoProcessError(processName string) error {
 	return fmt.Errorf("%w named %s", ErrNoProcess, processName)
 }

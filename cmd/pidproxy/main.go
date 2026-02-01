@@ -68,6 +68,7 @@ func forwardSignal(sig os.Signal, pidfile string) {
 }
 
 func readPid(pidfile string) (int, error) {
+	//nolint:gosec // G304: Trusted pidfile path from command argument
 	file, err := os.Open(pidfile)
 	if err == nil {
 		defer file.Close()

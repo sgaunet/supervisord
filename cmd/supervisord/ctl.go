@@ -512,5 +512,4 @@ func init() {
 		"get the standard output&standard error of the program",
 		"get the standard output&standard error of the program",
 		&logtailCommand)
-
 }

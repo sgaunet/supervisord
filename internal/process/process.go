@@ -143,7 +143,6 @@ func (p *Process) addToCron() {
 			}
 		}) // Ignore cron registration error
 	}
-
 }
 
 // Start process
@@ -369,7 +368,6 @@ func (p *Process) isAutoRestart() bool {
 		}
 	}
 	return false
-
 }
 
 func (p *Process) inExitCodes(exitCode int) bool {
@@ -385,7 +383,6 @@ func (p *Process) getExitCode() (int, error) {
 	}
 
 	return -1, apperrors.ErrNoExitCode
-
 }
 
 func (p *Process) getExitCodes() []int {
@@ -435,7 +432,6 @@ func (p *Process) createProgramCommand() error {
 
 	p.stdin, _ = p.cmd.StdinPipe()
 	return nil
-
 }
 
 func (p *Process) setProgramRestartChangeMonitor(programPath string) {
@@ -461,7 +457,6 @@ func (p *Process) setProgramRestartChangeMonitor(programPath string) {
 				p.Stop(true)
 				p.Start(true)
 			}
-
 		})
 	}
 	dirMonitor := p.config.GetString("restart_directory_monitor", "")
@@ -490,7 +485,6 @@ func (p *Process) setProgramRestartChangeMonitor(programPath string) {
 			}
 		})
 	}
-
 }
 
 // wait for the started program exit
@@ -513,7 +507,6 @@ func (p *Process) waitForExit(startSecs int64) {
 	if p.StderrLog != nil {
 		_ = p.StderrLog.Close() // Ignore close error on exit
 	}
-
 }
 
 // fail to start the program
@@ -694,7 +687,6 @@ func (p *Process) run(finishCb func()) {
 			break
 		}
 	}
-
 }
 
 func (p *Process) changeStateTo(procState State) {
@@ -844,7 +836,6 @@ func (p *Process) setLog() {
 		}
 
 		p.cmd.Stderr = p.StderrLog
-
 	} else if p.config.IsEventListener() {
 		in, err := p.cmd.StdoutPipe()
 		if err != nil {

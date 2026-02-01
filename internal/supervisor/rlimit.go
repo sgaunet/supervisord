@@ -42,6 +42,7 @@ func (s *Supervisor) checkMinLimit(resource int, resourceName string, minRequire
 	}
 
 	if minRequiredSource > limit.Max {
+		//nolint:gosec // G115: Conversion validated by system limits
 		return apperrors.NewLimitExceedsHardError(resourceName, int64(minRequiredSource), int64(limit.Max))
 	}
 
@@ -51,6 +52,7 @@ func (s *Supervisor) checkMinLimit(resource int, resourceName string, minRequire
 
 	limit.Cur = limit.Max
 	if syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limit) != nil {
+		//nolint:gosec // G115: Conversion validated by system limits
 		return apperrors.NewFailedToSetLimitError(resourceName, int64(limit.Cur))
 	}
 	return nil

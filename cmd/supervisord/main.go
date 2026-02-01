@@ -56,7 +56,6 @@ func initSignals(s *supervisor.Supervisor) {
 		s.GetManager().StopAllProcesses()
 		os.Exit(-1)
 	}()
-
 }
 
 var options Options

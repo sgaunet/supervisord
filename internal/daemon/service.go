@@ -23,13 +23,13 @@ func (p *program) Start(s service.Service) error {
 
 func (p *program) run() {}
 
-// Stop supervised service
+// Stop supervised service.
 func (p *program) Stop(s service.Service) error {
 	// Stop should not block. Return with a few seconds.
 	return nil
 }
 
-// Execute implement Execute() method defined in flags.Commander interface, executes the given command
+// Execute implement Execute() method defined in flags.Commander interface, executes the given command.
 func (sc ServiceCommand) Execute(args []string) error {
 	if len(args) == 0 {
 		showUsage()
@@ -108,7 +108,7 @@ func showUsage() {
 	fmt.Println("usage: supervisord service install/uninstall/start/stop")
 }
 
-// RegisterServiceCommand registers the service command with the parser
+// RegisterServiceCommand registers the service command with the parser.
 func RegisterServiceCommand(p interface {
 	AddCommand(shortDescription string, longDescription string, data string, command any) (any, error)
 }, serviceCmd *ServiceCommand) {

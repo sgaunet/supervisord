@@ -175,11 +175,12 @@ func (r *XMLRPCClient) post(method string, data any, processBody func(io.ReadClo
 		fmt.Printf("Malform url:%s\n", myurl)
 		return
 	}
-	if myurl.Scheme == "http" || myurl.Scheme == "https" {
+	switch myurl.Scheme {
+	case "http", "https":
 		r.postInetHTTP(method, r.URL(), data, processBody)
-	} else if myurl.Scheme == "unix" {
+	case "unix":
 		r.postUnixHTTP(method, myurl.Path, data, processBody)
-	} else {
+	default:
 		fmt.Printf("Unsupported URL scheme:%s\n", myurl.Scheme)
 	}
 }

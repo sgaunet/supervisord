@@ -207,8 +207,8 @@ func (c *Config) GetConfigFileDir() string {
 func toRegexp(pattern string) string {
 	tmp := strings.Split(pattern, ".")
 	for i, t := range tmp {
-		s := strings.Replace(t, "*", ".*", -1)
-		tmp[i] = strings.Replace(s, "?", ".", -1)
+		s := strings.ReplaceAll(t, "*", ".*")
+		tmp[i] = strings.ReplaceAll(s, "?", ".")
 	}
 	return strings.Join(tmp, "\\.")
 }
@@ -383,6 +383,7 @@ func parseEnvFiles(s string) *map[string]string {
 	result := make(map[string]string)
 	for envFilePath := range strings.SplitSeq(s, ",") {
 		envFilePath = strings.TrimSpace(envFilePath)
+		//nolint:gosec // G304: Trusted environment file path from configuration
 		f, err := os.Open(envFilePath)
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -519,11 +520,12 @@ func (c *Entry) GetBytes(key string, defValue int) int {
 	if ok {
 		if len(v) > 2 {
 			lastTwoBytes := v[len(v)-2:]
-			if lastTwoBytes == "MB" {
+			switch lastTwoBytes {
+			case "MB":
 				return toInt(v[:len(v)-2], 1024*1024, defValue)
-			} else if lastTwoBytes == "GB" {
+			case "GB":
 				return toInt(v[:len(v)-2], 1024*1024*1024, defValue)
-			} else if lastTwoBytes == "KB" {
+			case "KB":
 				return toInt(v[:len(v)-2], 1024, defValue)
 			}
 		}

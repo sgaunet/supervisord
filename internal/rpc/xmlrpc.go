@@ -201,6 +201,7 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 		log.WithFields(log.Fields{"addr": listenAddr, "protocol": protocol}).Info("success to listen on address")
 		p.listeners[protocol] = listener
 		startedCb()
+		//nolint:gosec // G114: Internal RPC server with controlled access
 		_ = http.Serve(listener, mux)
 	} else {
 		startedCb()

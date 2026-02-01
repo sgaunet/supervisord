@@ -236,7 +236,7 @@ func (s *Supervisor) GetProcessInfo(r *http.Request, args *struct{ Name string }
 func (s *Supervisor) StartProcess(r *http.Request, args *StartProcessArgs, reply *struct{ Success bool }) error {
 	procs := s.procMgr.FindMatch(args.Name)
 
-	if len(procs) <= 0 {
+	if len(procs) == 0 {
 		return fmt.Errorf("fail to find process %s", args.Name)
 	}
 	for _, proc := range procs {
@@ -296,7 +296,7 @@ func (s *Supervisor) StartProcessGroup(r *http.Request, args *StartProcessArgs, 
 func (s *Supervisor) StopProcess(r *http.Request, args *StartProcessArgs, reply *struct{ Success bool }) error {
 	log.WithFields(log.Fields{"program": args.Name}).Info("stop process")
 	procs := s.procMgr.FindMatch(args.Name)
-	if len(procs) <= 0 {
+	if len(procs) == 0 {
 		return fmt.Errorf("fail to find process %s", args.Name)
 	}
 	for _, proc := range procs {
@@ -353,7 +353,7 @@ func (s *Supervisor) StopAllProcesses(r *http.Request, args *struct {
 // SignalProcess send a signal to running program
 func (s *Supervisor) SignalProcess(r *http.Request, args *types.ProcessSignal, reply *struct{ Success bool }) error {
 	procs := s.procMgr.FindMatch(args.Name)
-	if len(procs) <= 0 {
+	if len(procs) == 0 {
 		reply.Success = false
 		return fmt.Errorf("No process named %s", args.Name)
 	}
@@ -439,7 +439,7 @@ func (s *Supervisor) Reload(restart bool) (addedGroup []string, changedGroup []s
 
 	if checkErr := s.checkRequiredResources(); checkErr != nil {
 		log.Error(checkErr)
-		os.Exit(1)
+		return nil, nil, nil, checkErr
 	}
 	if err == nil {
 		s.setSupervisordInfo()
@@ -458,7 +458,6 @@ func (s *Supervisor) Reload(restart bool) (addedGroup []string, changedGroup []s
 		if proc != nil {
 			proc.Stop(false)
 		}
-
 	}
 	addedGroup, changedGroup, removedGroup = s.config.ProgramGroup.Sub(prevProgGroup)
 	return addedGroup, changedGroup, removedGroup, err
@@ -535,6 +534,7 @@ func (s *Supervisor) setSupervisordInfo() {
 		// set the pid
 		pidfile, err := env.Eval(supervisordConf.GetString("pidfile", "supervisord.pid"))
 		if err == nil {
+			//nolint:gosec // G304: Trusted pidfile path from configuration
 			f, err := os.Create(pidfile)
 			if err == nil {
 				fmt.Fprintf(f, "%d", os.Getpid())
