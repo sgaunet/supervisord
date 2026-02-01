@@ -359,7 +359,7 @@ func parseEnvValue(s string, start int, n int, key string, result map[string]str
 			result[strings.TrimSpace(key)] = strings.TrimSpace(s[start+1 : i])
 		}
 		if i+1 < n && s[i+1] == ',' {
-			return i + 2, true
+			return i + 2, true //nolint:mnd // Skip 2 chars: closing quote and comma
 		}
 		return i, false
 	}
@@ -536,18 +536,24 @@ func (c *Entry) GetStringArray(key string, sep string) []string {
 //	logSize=1024
 //
 func (c *Entry) GetBytes(key string, defValue int) int {
+	const (
+		suffixLen = 2           // Length of byte unit suffix (KB, MB, GB)
+		bytesPerKB = 1024
+		bytesPerMB = 1024 * 1024
+		bytesPerGB = 1024 * 1024 * 1024
+	)
 	v, ok := c.keyValues[key]
 
 	if ok {
-		if len(v) > 2 {
-			lastTwoBytes := v[len(v)-2:]
+		if len(v) > suffixLen {
+			lastTwoBytes := v[len(v)-suffixLen:]
 			switch lastTwoBytes {
 			case "MB":
-				return toInt(v[:len(v)-2], 1024*1024, defValue)
+				return toInt(v[:len(v)-suffixLen], bytesPerMB, defValue)
 			case "GB":
-				return toInt(v[:len(v)-2], 1024*1024*1024, defValue)
+				return toInt(v[:len(v)-suffixLen], bytesPerGB, defValue)
 			case "KB":
-				return toInt(v[:len(v)-2], 1024, defValue)
+				return toInt(v[:len(v)-suffixLen], bytesPerKB, defValue)
 			}
 		}
 		return toInt(v, 1, defValue)

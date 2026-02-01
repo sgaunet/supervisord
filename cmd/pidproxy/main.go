@@ -38,13 +38,13 @@ func installSignalAndForward(pidfile string, exitIfDaemonStopped bool) {
 	c := make(chan os.Signal, 1)
 	installSignal(c)
 
-	timer := time.After(5 * time.Second)
+	timer := time.After(5 * time.Second) //nolint:mnd // 5 seconds is the standard health check interval
 	for {
 		select {
 		case sig := <-c:
 			handleSignal(sig, pidfile)
 		case <-timer:
-			timer = time.After(5 * time.Second)
+			timer = time.After(5 * time.Second) //nolint:mnd // 5 seconds is the standard health check interval
 			checkProcessAlive(pidfile, exitIfDaemonStopped)
 		}
 	}
@@ -127,7 +127,7 @@ func main() {
 		args = os.Args[1:]
 	}
 
-	if len(args) < 2 {
+	if len(args) < 2 { //nolint:mnd // 2 required arguments: pidfile and command
 		printUsage()
 	} else {
 		pidfile := args[0]

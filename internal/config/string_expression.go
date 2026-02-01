@@ -19,7 +19,7 @@ func NewStringExpression(envs ...string) *StringExpression {
 	se := &StringExpression{env: make(map[string]string)}
 
 	for _, env := range os.Environ() {
-		t := strings.SplitN(env, "=", 2)
+		t := strings.SplitN(env, "=", 2) //nolint:mnd // Split key=value into 2 parts
 		se.env["ENV_"+t[0]] = t[1]
 	}
 	n := len(envs)

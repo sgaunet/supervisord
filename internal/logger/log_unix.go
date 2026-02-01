@@ -172,16 +172,19 @@ func parseSysLogConfig(config string) (protocol string, host string, port int, e
 	protocol = ""
 	port = 0
 	const (
-		protocolTCP = "tcp"
-		protocolUDP = "udp"
+		protocolTCP       = "tcp"
+		protocolUDP       = "udp"
+		singleFieldCount  = 1 // host only
+		twoFieldCount     = 2 // protocol+host or host+port
+		threeFieldCount   = 3 // protocol+host+port
 	)
 	err = nil
 	switch len(fields) {
-	case 1:
+	case singleFieldCount:
 		host = fields[0]
 		port = 514
 		protocol = protocolUDP
-	case 2:
+	case twoFieldCount:
 		switch fields[0] {
 		case protocolTCP:
 			host = fields[1]
@@ -199,7 +202,7 @@ func parseSysLogConfig(config string) (protocol string, host string, port int, e
 				return "", "", 0, fmt.Errorf("failed to parse port %s: %w", fields[1], err)
 			}
 		}
-	case 3:
+	case threeFieldCount:
 		protocol = fields[0]
 		host = fields[1]
 		port, err = strconv.Atoi(fields[2])

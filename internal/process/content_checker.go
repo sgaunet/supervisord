@@ -107,7 +107,8 @@ func NewTCPChecker(host string, port int, includes []string, timeout int) *TCPCh
 
 func (tc *TCPChecker) start() {
 	go func() {
-		b := make([]byte, 1024)
+		const bufferSize = 1024
+		b := make([]byte, bufferSize)
 		var err error
 		for {
 			tc.conn, err = net.Dial("tcp", net.JoinHostPort(tc.host, strconv.Itoa(tc.port)))

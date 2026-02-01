@@ -281,9 +281,16 @@ func init() {
 }
 
 func startTickTimer() {
-	tickConfigs := map[string]int64{"TICK_5": 5,
-		"TICK_60":   60,
-		"TICK_3600": 3600}
+	const (
+		tick5Seconds   = 5
+		tick60Seconds  = 60
+		tick3600Seconds = 3600
+	)
+	tickConfigs := map[string]int64{
+		"TICK_5":    tick5Seconds,
+		"TICK_60":   tick60Seconds,
+		"TICK_3600": tick3600Seconds,
+	}
 
 	// start a Tick timer
 	go func() {
@@ -493,7 +500,8 @@ func (pec *ProcCommEventCapture) SetPid(pid int) {
 
 func (pec *ProcCommEventCapture) startCapture() {
 	go func() {
-		buf := make([]byte, 10240)
+		const bufferSize = 10240
+		buf := make([]byte, bufferSize)
 		for {
 			n, err := pec.reader.Read(buf)
 			if err != nil {
@@ -511,7 +519,7 @@ func (pec *ProcCommEventCapture) startCapture() {
 	}()
 }
 
-//nolint:ireturn // Factory pattern returns interface type intentionally
+//nolint:ireturn // Factory pattern requires interface return
 func (pec *ProcCommEventCapture) captureEvent() Event {
 	pec.findBeginStr()
 	endPos := pec.findEndStr()

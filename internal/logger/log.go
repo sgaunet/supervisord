@@ -97,7 +97,7 @@ func (l *FileLogger) openFile(trunc bool) error {
 		l.file, err = os.Create(l.name)
 	} else {
 		l.fileSize = fileInfo.Size()
-		l.file, err = os.OpenFile(l.name, os.O_RDWR|os.O_APPEND, 0600)
+		l.file, err = os.OpenFile(l.name, os.O_RDWR|os.O_APPEND, 0600) //nolint:mnd // 0600 is standard user-only file permissions
 	}
 	if err != nil {
 		fmt.Printf("Fail to open log file --%s-- with error %v\n", l.name, err)

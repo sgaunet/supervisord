@@ -99,7 +99,7 @@ func (r *XMLRPCClient) createHTTPRequest(method string, url string, data any) (*
 func (r *XMLRPCClient) processResponse(resp *http.Response, processBody func(io.ReadCloser, error)) {
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode/100 != 2 {
+	if resp.StatusCode/100 != 2 { //nolint:mnd // HTTP 2xx success status codes
 		if r.verbose {
 			fmt.Println("Bad Response:", resp.Status)
 		}
@@ -265,17 +265,22 @@ func (r *XMLRPCClient) ReloadConfig() (reply types.ReloadConfigResult, err error
 	reply.AddedGroup = make([]string, 0)
 	reply.ChangedGroup = make([]string, 0)
 	reply.RemovedGroup = make([]string, 0)
+	const (
+		addedGroupIndex   = 0
+		changedGroupIndex = 1
+		removedGroupIndex = 2
+	)
 	i := 0
 	xmlProcMgr.AddSwitchTypeProcessor("methodResponse/params/param/value/array/data", func() {
 		i++
 	})
 	xmlProcMgr.AddLeafProcessor("methodResponse/params/param/value/array/data/value", func(value string) {
 		switch i {
-		case 0:
+		case addedGroupIndex:
 			reply.AddedGroup = append(reply.AddedGroup, value)
-		case 1:
+		case changedGroupIndex:
 			reply.ChangedGroup = append(reply.ChangedGroup, value)
-		case 2:
+		case removedGroupIndex:
 			reply.RemovedGroup = append(reply.RemovedGroup, value)
 		}
 	})
@@ -285,7 +290,7 @@ func (r *XMLRPCClient) ReloadConfig() (reply types.ReloadConfigResult, err error
 			xmlProcMgr.ProcessXML(body)
 		}
 	})
-	return
+	return reply, err
 }
 
 // SignalProcess requests to send signal to program.

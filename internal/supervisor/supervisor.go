@@ -476,12 +476,13 @@ func (s *Supervisor) Reload(restart bool) (addedGroup []string, changedGroup []s
 
 // WaitForExit waits for supervisord to exit.
 func (s *Supervisor) WaitForExit() {
+	const checkInterval = 10 // seconds
 	for {
 		if s.IsRestarting() {
 			s.procMgr.StopAllProcesses()
 			break
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(checkInterval * time.Second)
 	}
 }
 
@@ -530,11 +531,15 @@ func (s *Supervisor) setSupervisordInfo() {
 		if logFile == "/dev/stdout" {
 			return
 		}
+		const (
+			defaultLogMaxBytes = 50 * 1024 * 1024 // 50 MB
+			defaultLogBackups  = 10
+		)
 		logEventEmitter := logger.NewNullLogEventEmitter()
 		s.logger = logger.NewNullLogger(logEventEmitter)
 		if err == nil {
-			logfileMaxbytes := int64(supervisordConf.GetBytes("logfile_maxbytes", 50*1024*1024))
-			logfileBackups := supervisordConf.GetInt("logfile_backups", 10)
+			logfileMaxbytes := int64(supervisordConf.GetBytes("logfile_maxbytes", defaultLogMaxBytes))
+			logfileBackups := supervisordConf.GetInt("logfile_backups", defaultLogBackups)
 			loglevel := supervisordConf.GetString("loglevel", "info")
 			props := make(map[string]string)
 			s.logger = logger.NewLogger("supervisord", logFile, &sync.Mutex{}, logfileMaxbytes, logfileBackups, props, logEventEmitter)

@@ -6,7 +6,9 @@ import (
 	"github.com/ochinchina/filechangemonitor"
 )
 
-var fileChangeMonitor = filechangemonitor.NewFileChangeMonitor(10)
+const fileMonitorWorkers = 10 // Number of worker goroutines for file monitoring
+
+var fileChangeMonitor = filechangemonitor.NewFileChangeMonitor(fileMonitorWorkers)
 
 // AddProgramChangeMonitor adds program change listener to monitor if the program binary.
 func AddProgramChangeMonitor(path string, fileChangeCb func(path string, mode filechangemonitor.FileChangeMode)) {

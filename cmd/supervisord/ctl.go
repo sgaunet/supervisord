@@ -454,7 +454,8 @@ func (lc *LogtailCommand) tailLog(program string, dev string) error {
 		return fmt.Errorf("failed to execute HTTP request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	buf := make([]byte, 10240)
+	const bufferSize = 10240
+	buf := make([]byte, bufferSize)
 	for {
 		n, err := resp.Body.Read(buf)
 		if err != nil && err != io.EOF {

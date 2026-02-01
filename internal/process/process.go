@@ -179,8 +179,10 @@ func (p *Process) Start(wait bool) {
 				}
 			})
 			// avoid print too many logs if fail to start program too quickly
-			if time.Now().Unix()-p.startTime.Unix() < 2 {
-				time.Sleep(5 * time.Second)
+			const minStartDuration = 2  // seconds
+			const restartDelay = 5      // seconds
+			if time.Now().Unix()-p.startTime.Unix() < minStartDuration {
+				time.Sleep(restartDelay * time.Second)
 			}
 			if p.stopByUser {
 				log.WithFields(log.Fields{"program": p.GetName()}).Info("program stopped by user, don't start it again")
@@ -224,14 +226,19 @@ func (p *Process) GetDescription() string {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if p.state == Running {
+		const (
+			secondsPerMinute = 60
+			minutesPerHour   = 60
+			hoursPerDay      = 24
+		)
 		seconds := int(time.Since(p.startTime).Seconds())
-		minutes := seconds / 60
-		hours := minutes / 60
-		days := hours / 24
+		minutes := seconds / secondsPerMinute
+		hours := minutes / minutesPerHour
+		days := hours / hoursPerDay
 		if days > 0 {
-			return fmt.Sprintf("pid %d, uptime %d days, %d:%02d:%02d", p.cmd.Process.Pid, days, hours%24, minutes%60, seconds%60)
+			return fmt.Sprintf("pid %d, uptime %d days, %d:%02d:%02d", p.cmd.Process.Pid, days, hours%hoursPerDay, minutes%secondsPerMinute, seconds%secondsPerMinute)
 		}
-		return fmt.Sprintf("pid %d, uptime %d:%02d:%02d", p.cmd.Process.Pid, hours%24, minutes%60, seconds%60)
+		return fmt.Sprintf("pid %d, uptime %d:%02d:%02d", p.cmd.Process.Pid, hours%hoursPerDay, minutes%secondsPerMinute, seconds%secondsPerMinute)
 	} else if p.state != Stopped {
                 if p.stopTime.Unix() > 0 {
 			return p.stopTime.String()
@@ -319,7 +326,8 @@ func (p *Process) getRestartPause() int {
 }
 
 func (p *Process) getStartRetries() int32 {
-	retries := p.config.GetInt("startretries", 3)
+	const defaultStartRetries = 3
+	retries := p.config.GetInt("startretries", defaultStartRetries)
 	retries = max(retries, 0)
 	retries = min(retries, math.MaxInt32)
 	// #nosec G115 - overflow protected by bounds check above
@@ -332,7 +340,8 @@ func (p *Process) isAutoStart() bool {
 
 // GetPriority returns program priority (as it set in config) with default value of 999.
 func (p *Process) GetPriority() int {
-	return p.config.GetInt("priority", 999)
+	const defaultPriority = 999
+	return p.config.GetInt("priority", defaultPriority)
 }
 
 //nolint:unused // Keep for future use
@@ -516,9 +525,10 @@ func (p *Process) failToStartProgram(reason string, finishCb func()) {
 
 // monitor if the program is in running before endTime.
 func (p *Process) monitorProgramIsRunning(endTime time.Time, monitorExited *int32, programExited *int32) {
+	const pollInterval = 100 // milliseconds
 	// if time is not expired
 	for time.Now().Before(endTime) && atomic.LoadInt32(programExited) == 0 {
-		time.Sleep(time.Duration(100) * time.Millisecond)
+		time.Sleep(time.Duration(pollInterval) * time.Millisecond)
 	}
 	atomic.StoreInt32(monitorExited, 1)
 
@@ -533,9 +543,11 @@ func (p *Process) monitorProgramIsRunning(endTime time.Time, monitorExited *int3
 
 func (p *Process) startLoggerClosingMonitor() {
 	go func() {
+		const defaultStopWaitSecs = 10
+		const halfDivisor = 2
 		// the sleep time must be less than `stopwaitsecs`, here I set half of `stopwaitsecs`
 		// otherwise the logger will not be closed before SIGKILL is sent
-		halfWaitsecs := time.Duration(p.config.GetInt("stopwaitsecs", 10)/2) * time.Second
+		halfWaitsecs := time.Duration(p.config.GetInt("stopwaitsecs", defaultStopWaitSecs)/halfDivisor) * time.Second
 		for p.isRunning() {
 			time.Sleep(halfWaitsecs)
 		}
@@ -578,6 +590,7 @@ func (p *Process) attemptProgramStart(finishCbWrapper func()) (bool, error) {
 }
 
 func (p *Process) waitForProgramExit(startSecs int) {
+	const pollInterval = 100 // milliseconds
 	procExitC := make(chan struct{})
 	go func() {
 		p.waitForExit(int64(startSecs))
@@ -594,7 +607,7 @@ LOOP:
 				break LOOP
 			}
 		}
-		time.Sleep(time.Duration(100) * time.Millisecond)
+		time.Sleep(time.Duration(pollInterval) * time.Millisecond)
 	}
 }
 
@@ -637,10 +650,11 @@ func (p *Process) monitorAndWaitForExit(startSecs int64, endTime time.Time, fini
 
 	p.waitForProgramExit(int(startSecs))
 
+	const monitorPollInterval = 10 // milliseconds
 	atomic.StoreInt32(&programExited, 1)
 	// wait for monitor thread exit
 	for atomic.LoadInt32(&monitorExited) == 0 {
-		time.Sleep(time.Duration(10) * time.Millisecond)
+		time.Sleep(time.Duration(monitorPollInterval) * time.Millisecond)
 	}
 
 	p.lock.Lock()
@@ -815,7 +829,7 @@ func mergeKeyValueArrays(arr1, arr2 []string) []string {
 
 	// 处理第一个数组，保留所有元素
 	for _, item := range arr1 {
-		if key := strings.SplitN(item, "=", 2)[0]; key != "" {
+		if key := strings.SplitN(item, "=", 2)[0]; key != "" { //nolint:mnd // 2 parts: key=value split
 			keySet[key] = true
 		}
 		result = append(result, item)
@@ -823,7 +837,7 @@ func mergeKeyValueArrays(arr1, arr2 []string) []string {
 
 	// 处理第二个数组，跳过已存在的键
 	for _, item := range arr2 {
-		if key := strings.SplitN(item, "=", 2)[0]; key != "" {
+		if key := strings.SplitN(item, "=", 2)[0]; key != "" { //nolint:mnd // 2 parts: key=value split
 			if !keySet[key] {
 				result = append(result, item)
 			}
@@ -925,7 +939,7 @@ func (p *Process) registerEventListener(eventListenerName string,
 		p.supervisorID,
 		stdin,
 		stdout,
-		p.config.GetInt("buffer_size", 100))
+		p.config.GetInt("buffer_size", 100)) //nolint:mnd // 100 is default event buffer size
 	events.RegisterEventListener(eventListenerName, _events, eventListener)
 }
 
@@ -935,15 +949,17 @@ func (p *Process) unregisterEventListener(eventListenerName string) {
 }
 
 //nolint:ireturn // Factory pattern requires interface return
-func (p *Process) createStdoutLogger() logger.Logger {
-	logFile := p.GetStdoutLogfile()
-	maxBytes := int64(p.config.GetBytes("stdout_logfile_maxbytes", 50*1024*1024))
-	backups := p.config.GetInt("stdout_logfile_backups", 10)
-	logEventEmitter := p.createStdoutLogEventEmitter()
+func (p *Process) createLogger(logFile string, maxBytesKey string, backupsKey string, priorityKey string, eventEmitter logger.LogEventEmitter) logger.Logger {
+	const (
+		defaultMaxBytes = 50 * 1024 * 1024 // 50 MB
+		defaultBackups  = 10
+	)
+	maxBytes := int64(p.config.GetBytes(maxBytesKey, defaultMaxBytes))
+	backups := p.config.GetInt(backupsKey, defaultBackups)
 	props := make(map[string]string)
 	syslog_facility := p.config.GetString("syslog_facility", "")
 	syslog_tag := p.config.GetString("syslog_tag", "")
-	syslog_priority := p.config.GetString("syslog_stdout_priority", "")
+	syslog_priority := p.config.GetString(priorityKey, "")
 
 	if len(syslog_facility) > 0 {
 		props["syslog_facility"] = syslog_facility
@@ -955,31 +971,29 @@ func (p *Process) createStdoutLogger() logger.Logger {
 		props["syslog_priority"] = syslog_priority
 	}
 
-	return logger.NewLogger(p.GetName(), logFile, logger.NewNullLocker(), maxBytes, backups, props, logEventEmitter)
+	return logger.NewLogger(p.GetName(), logFile, logger.NewNullLocker(), maxBytes, backups, props, eventEmitter)
+}
+
+//nolint:ireturn // Factory pattern requires interface return
+func (p *Process) createStdoutLogger() logger.Logger {
+	return p.createLogger(
+		p.GetStdoutLogfile(),
+		"stdout_logfile_maxbytes",
+		"stdout_logfile_backups",
+		"syslog_stdout_priority",
+		p.createStdoutLogEventEmitter(),
+	)
 }
 
 //nolint:ireturn // Factory pattern requires interface return
 func (p *Process) createStderrLogger() logger.Logger {
-	logFile := p.GetStderrLogfile()
-	maxBytes := int64(p.config.GetBytes("stderr_logfile_maxbytes", 50*1024*1024))
-	backups := p.config.GetInt("stderr_logfile_backups", 10)
-	logEventEmitter := p.createStderrLogEventEmitter()
-	props := make(map[string]string)
-	syslog_facility := p.config.GetString("syslog_facility", "")
-	syslog_tag := p.config.GetString("syslog_tag", "")
-	syslog_priority := p.config.GetString("syslog_stderr_priority", "")
-
-	if len(syslog_facility) > 0 {
-		props["syslog_facility"] = syslog_facility
-	}
-	if len(syslog_tag) > 0 {
-		props["syslog_tag"] = syslog_tag
-	}
-	if len(syslog_priority) > 0 {
-		props["syslog_priority"] = syslog_priority
-	}
-
-	return logger.NewLogger(p.GetName(), logFile, logger.NewNullLocker(), maxBytes, backups, props, logEventEmitter)
+	return p.createLogger(
+		p.GetStderrLogfile(),
+		"stderr_logfile_maxbytes",
+		"stderr_logfile_backups",
+		"syslog_stderr_priority",
+		p.createStderrLogEventEmitter(),
+	)
 }
 
 func (p *Process) setUser() error {
@@ -1048,8 +1062,8 @@ func appendEnvWithOverride(env []string, pairs ...string) []string {
 
 	// 保留未覆盖的旧变量
 	for _, e := range env {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) < 2 || set[parts[0]] {
+		parts := strings.SplitN(e, "=", 2) //nolint:mnd // Split key=value into 2 parts
+		if len(parts) < 2 || set[parts[0]] { //nolint:mnd // Verify key=value has both parts
 			continue
 		}
 		newEnv = append(newEnv, e)
@@ -1081,6 +1095,7 @@ func filterRootEnv(env *[]string) {
 }
 
 func (p *Process) waitForProcessExit(stopped *int32, duration time.Duration) {
+	const pollInterval = 10 // milliseconds
 	endTime := time.Now().Add(duration)
 	for endTime.After(time.Now()) {
 		// if it already exits
@@ -1088,7 +1103,7 @@ func (p *Process) waitForProcessExit(stopped *int32, duration time.Duration) {
 			atomic.StoreInt32(stopped, 1)
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(pollInterval * time.Millisecond)
 	}
 }
 
@@ -1123,11 +1138,15 @@ func (p *Process) Stop(wait bool) {
 		return
 	}
 
+	const (
+		defaultStopWaitSecs = 10 // seconds
+		defaultKillWaitSecs = 2  // seconds
+	)
 	log.WithFields(log.Fields{"program": p.GetName()}).Info("stopping the program")
 	p.changeStateTo(Stopping)
 	sigs := strings.Fields(p.config.GetString("stopsignal", "TERM"))
-	waitsecs := time.Duration(p.config.GetInt("stopwaitsecs", 10)) * time.Second
-	killwaitsecs := time.Duration(p.config.GetInt("killwaitsecs", 2)) * time.Second
+	waitsecs := time.Duration(p.config.GetInt("stopwaitsecs", defaultStopWaitSecs)) * time.Second
+	killwaitsecs := time.Duration(p.config.GetInt("killwaitsecs", defaultKillWaitSecs)) * time.Second
 	stopasgroup := p.config.GetBool("stopasgroup", false)
 	killasgroup := p.config.GetBool("killasgroup", stopasgroup)
 	if stopasgroup && !killasgroup {

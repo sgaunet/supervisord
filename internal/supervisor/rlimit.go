@@ -9,12 +9,12 @@ import (
 )
 
 func (s *Supervisor) checkRequiredResources() error {
+	const rlimitNproc = 6 // RLIMIT_NPROC on non-FreeBSD systems
 	if minfds, vErr := s.getMinRequiredRes("minfds"); vErr == nil {
 		return s.checkMinLimit(syscall.RLIMIT_NOFILE, "NOFILE", minfds)
 	}
 	if minprocs, vErr := s.getMinRequiredRes("minprocs"); vErr == nil {
-		// RPROC = 6
-		return s.checkMinLimit(6, "NPROC", minprocs)
+		return s.checkMinLimit(rlimitNproc, "NPROC", minprocs)
 	}
 	return nil
 }

@@ -20,7 +20,8 @@ func (p ProgramByPriority) Swap(i, j int) {
 
 // Less returns true if the priority i-th program is less than the priority of j-th program.
 func (p ProgramByPriority) Less(i, j int) bool {
-	return p[i].GetInt("priority", 999) < p[j].GetInt("priority", 999)
+	const defaultPriority = 999
+	return p[i].GetInt("priority", defaultPriority) < p[j].GetInt("priority", defaultPriority)
 }
 
 // ProcessSorter sort the program by its priority.
