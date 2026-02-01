@@ -45,7 +45,7 @@ var signalMap = map[string]os.Signal{"SIGABRT": syscall.SIGABRT,
 	"SIGXCPU":   syscall.SIGXCPU,
 	"SIGXFSZ":   syscall.SIGXFSZ}
 
-// ToSignal returns OS dependent signal name for given signal name (or syscall.SIGTERM if garbage given)
+// ToSignal returns OS dependent signal name for given signal name (or syscall.SIGTERM if garbage given).
 func ToSignal(signalName string) (os.Signal, error) {
 	if !strings.HasPrefix(signalName, "SIG") {
 		signalName = fmt.Sprintf("SIG%s", signalName)
@@ -56,9 +56,9 @@ func ToSignal(signalName string) (os.Signal, error) {
 	return syscall.SIGTERM, nil
 }
 
-// Kill sends signal to the process
+// Kill sends signal to the process.
 //
-// Args:
+// Args:.
 //    process - the process which the signal should be sent to
 //    sig - the signal will be sent
 //    sigChildren - true if the signal needs to be sent to the children also

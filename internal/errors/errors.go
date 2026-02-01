@@ -125,7 +125,7 @@ func NewNoProcessError(processName string) error {
 	return fmt.Errorf("%w named %s", ErrNoProcess, processName)
 }
 
-// NewBadResponseError creates an error for bad HTTP response
+// NewBadResponseError creates an error for bad HTTP response.
 func NewBadResponseError(statusCode int) error {
 	return fmt.Errorf("%w with status code %d", ErrBadResponse, statusCode)
 }
@@ -145,12 +145,12 @@ func NewHTTPCreateFailedError(err error) error {
 	return fmt.Errorf("%w: %w", ErrHTTPCreateFailed, err)
 }
 
-// NewUnixSocketWriteError creates an error for failed Unix socket write
+// NewUnixSocketWriteError creates an error for failed Unix socket write.
 func NewUnixSocketWriteError(path string) error {
 	return fmt.Errorf("%w %s", ErrUnixSocketWrite, path)
 }
 
-// NewResponseReadFailedError creates an error for failed response read
+// NewResponseReadFailedError creates an error for failed response read.
 func NewResponseReadFailedError(err error) error {
 	return fmt.Errorf("%w %w", ErrResponseReadFailed, err)
 }

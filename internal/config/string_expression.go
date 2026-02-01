@@ -9,12 +9,12 @@ import (
 	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
-// StringExpression replace the python String like "%(var)s" to string
+// StringExpression replace the python String like "%(var)s" to string.
 type StringExpression struct {
 	env map[string]string // the environment variable used to replace the var in the python expression
 }
 
-// NewStringExpression create a new StringExpression with the environment variables
+// NewStringExpression create a new StringExpression with the environment variables.
 func NewStringExpression(envs ...string) *StringExpression {
 	se := &StringExpression{env: make(map[string]string)}
 
@@ -35,13 +35,13 @@ func NewStringExpression(envs ...string) *StringExpression {
 	return se
 }
 
-// Add adds environment variable (key,value)
+// Add adds environment variable (key,value).
 func (se *StringExpression) Add(key string, value string) *StringExpression {
 	se.env[key] = value
 	return se
 }
 
-// Eval substitutes "%(var)s" in given string with evaluated values, and returns resulting string
+// Eval substitutes "%(var)s" in given string with evaluated values, and returns resulting string.
 func (se *StringExpression) Eval(s string) (string, error) {
 	for {
 		// find variable start indicator
@@ -78,15 +78,16 @@ func (se *StringExpression) Eval(s string) (string, error) {
 			if !ok {
 				return "", apperrors.NewEnvVarNotFoundError(varName)
 			}
-			if s[typ] == 'd' {
+			switch s[typ] {
+			case 'd':
 				i, err := strconv.Atoi(varValue)
 				if err != nil {
 					return "", apperrors.NewEnvVarConversionError(varValue)
 				}
 				s = s[0:start] + fmt.Sprintf("%"+s[end+1:typ+1], i) + s[typ+1:]
-			} else if s[typ] == 's' {
+			case 's':
 				s = s[0:start] + varValue + s[typ+1:]
-			} else {
+			default:
 				return "", apperrors.NewTypeNotImplementedError(string(s[typ]))
 			}
 		} else {

@@ -1,6 +1,6 @@
 package xmlrpcclient
 
-// https://github.com/Supervisor/supervisor/blob/ff7f18169bcc8091055f61279d0a63997d594148/supervisor/xmlrpc.py#L26-L44
+// https://github.com/Supervisor/supervisor/blob/ff7f18169bcc8091055f61279d0a63997d594148/supervisor/xmlrpc.py#L26-L44.
 var (
 	UNKNOWN_METHOD        = 1
 	INCORRECT_PARAMETERS  = 2

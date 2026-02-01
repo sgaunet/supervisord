@@ -9,34 +9,35 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Manager manage all the process in the supervisor
+// Manager manage all the process in the supervisor.
 type Manager struct {
 	procs          map[string]*Process
 	eventListeners map[string]*Process
 	lock           sync.Mutex
 }
 
-// NewManager creates new Manager object
+// NewManager creates new Manager object.
 func NewManager() *Manager {
 	return &Manager{procs: make(map[string]*Process),
 		eventListeners: make(map[string]*Process),
 	}
 }
 
-// CreateProcess creates process (program or event listener) and adds to Manager object
+// CreateProcess creates process (program or event listener) and adds to Manager object.
 func (pm *Manager) CreateProcess(supervisorID string, config *config.Entry) *Process {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
-	if config.IsProgram() {
+	switch {
+	case config.IsProgram():
 		return pm.createProgram(supervisorID, config)
-	} else if config.IsEventListener() {
+	case config.IsEventListener():
 		return pm.createEventListener(supervisorID, config)
-	} else {
+	default:
 		return nil
 	}
 }
 
-// StartAutoStartPrograms starts all programs that set as should be autostarted
+// StartAutoStartPrograms starts all programs that set as should be autostarted.
 func (pm *Manager) StartAutoStartPrograms() {
 	pm.ForEachProcess(func(proc *Process) {
 		if proc.isAutoStart() {
@@ -71,7 +72,7 @@ func (pm *Manager) createEventListener(supervisorID string, config *config.Entry
 	return evtListener
 }
 
-// Add process to Manager object
+// Add process to Manager object.
 func (pm *Manager) Add(name string, proc *Process) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
@@ -79,12 +80,12 @@ func (pm *Manager) Add(name string, proc *Process) {
 	log.Info("add process:", name)
 }
 
-// Remove process from Manager object
+// Remove process from Manager object.
 //
-// Arguments:
-// name - the name of program
+// Arguments:.
+// name - the name of program.
 //
-// Return the process or nil
+// Return the process or nil.
 func (pm *Manager) Remove(name string) *Process {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
@@ -94,7 +95,7 @@ func (pm *Manager) Remove(name string) *Process {
 	return proc
 }
 
-// Find process by program name. Returns process or nil if process is not listed in Manager object
+// Find process by program name. Returns process or nil if process is not listed in Manager object.
 func (pm *Manager) Find(name string) *Process {
 	procs := pm.FindMatch(name)
 	if len(procs) == 1 {
@@ -105,10 +106,10 @@ func (pm *Manager) Find(name string) *Process {
 	return nil
 }
 
-// FindMatch lookup program with one of following format:
+// FindMatch lookup program with one of following format:.
 // - group:program
 // - group:*
-// - program
+// - program.
 func (pm *Manager) FindMatch(name string) []*Process {
 	result := make([]*Process, 0)
 	if groupName, programName, ok := strings.Cut(name, ":"); ok {
@@ -133,14 +134,14 @@ func (pm *Manager) FindMatch(name string) []*Process {
 	return result
 }
 
-// Clear all the processes from Manager object
+// Clear all the processes from Manager object.
 func (pm *Manager) Clear() {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 	pm.procs = make(map[string]*Process)
 }
 
-// ForEachProcess process each process in sync mode
+// ForEachProcess process each process in sync mode.
 func (pm *Manager) ForEachProcess(procFunc func(p *Process)) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
@@ -151,11 +152,11 @@ func (pm *Manager) ForEachProcess(procFunc func(p *Process)) {
 	}
 }
 
-// AsyncForEachProcess handle each process in async mode
-// Args:
+// AsyncForEachProcess handle each process in async mode.
+// Args:.
 // - procFunc, the function to handle the process
 // - done, signal the process is completed
-// Returns: number of total processes
+// Returns: number of total processes.
 func (pm *Manager) AsyncForEachProcess(procFunc func(p *Process), done chan *Process) int {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
@@ -181,7 +182,7 @@ func (pm *Manager) getAllProcess() []*Process {
 	return sortProcess(tmpProcs)
 }
 
-// StopAllProcesses stop all the processes listed in Manager object
+// StopAllProcesses stop all the processes listed in Manager object.
 func (pm *Manager) StopAllProcesses() {
 	var wg sync.WaitGroup
 

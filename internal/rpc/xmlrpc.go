@@ -21,8 +21,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// XMLRPC mange the XML RPC servers
-// start XML RPC servers to accept the XML RPC request from client side
+// XMLRPC mange the XML RPC servers.
+// start XML RPC servers to accept the XML RPC request from client side.
 type XMLRPC struct {
 	// all the listeners to accept the XML RPC request
 	listeners map[string]net.Listener
@@ -34,7 +34,7 @@ type httpBasicAuth struct {
 	handler  http.Handler
 }
 
-// create a new HttpBasicAuth object with username, password and the http request handler
+// create a new HttpBasicAuth object with username, password and the http request handler.
 func newHTTPBasicAuth(user string, password string, handler http.Handler) *httpBasicAuth {
 	if user != "" && password != "" {
 		log.Debug("require authentication")
@@ -68,12 +68,12 @@ func (h *httpBasicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusUnauthorized)
 }
 
-// NewXMLRPC create a new XML RPC object
+// NewXMLRPC create a new XML RPC object.
 func NewXMLRPC() *XMLRPC {
 	return &XMLRPC{listeners: make(map[string]net.Listener)}
 }
 
-// Stop network listening
+// Stop network listening.
 func (p *XMLRPC) Stop() {
 	log.Info("stop listening")
 	for _, listener := range p.listeners {
@@ -82,14 +82,14 @@ func (p *XMLRPC) Stop() {
 	p.listeners = make(map[string]net.Listener)
 }
 
-// StartUnixHTTPServer start http server on unix domain socket with path listenAddr. If both user and password are not empty, the user
+// StartUnixHTTPServer start http server on unix domain socket with path listenAddr. If both user and password are not empty, the user.
 // must provide user and password for basic authentication when making an XML RPC request.
 func (p *XMLRPC) StartUnixHTTPServer(user string, password string, listenAddr string, s *supervisor.Supervisor, startedCb func()) {
 	_ = os.Remove(listenAddr)
 	p.startHTTPServer(user, password, "unix", listenAddr, s, startedCb)
 }
 
-// StartInetHTTPServer start http server on tcp with path listenAddr. If both user and password are not empty, the user
+// StartInetHTTPServer start http server on tcp with path listenAddr. If both user and password are not empty, the user.
 // must provide user and password for basic authentication when making an XML RPC request.
 func (p *XMLRPC) StartInetHTTPServer(user string, password string, listenAddr string, s *supervisor.Supervisor, startedCb func()) {
 	p.startHTTPServer(user, password, "tcp", listenAddr, s, startedCb)
@@ -100,7 +100,7 @@ func (p *XMLRPC) isHTTPServerStartedOnProtocol(protocol string) bool {
 	return ok
 }
 
-// ReadFile reads a file and returns its contents
+// ReadFile reads a file and returns its contents.
 func ReadFile(path string) ([]byte, error) {
 	// #nosec G304 - path is validated at caller from supervisor configuration
 	f, err := os.Open(path)
@@ -116,7 +116,7 @@ func ReadFile(path string) ([]byte, error) {
 	return b, nil
 }
 
-// GetProgramConfigPath returns the config file path for a program
+// GetProgramConfigPath returns the config file path for a program.
 func GetProgramConfigPath(programName string, s *supervisor.Supervisor) string {
 	c := s.GetConfig().GetProgram(programName)
 	if c == nil {

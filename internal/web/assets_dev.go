@@ -6,5 +6,5 @@ import (
 	"net/http"
 )
 
-// HTTP auto generated
+// HTTP auto generated.
 var HTTP http.FileSystem = http.Dir("./webgui")

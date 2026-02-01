@@ -116,14 +116,14 @@ password = 123
 #prompt = not support
 `
 
-// InitTemplateCommand implements flags.Commander interface
+// InitTemplateCommand implements flags.Commander interface.
 type InitTemplateCommand struct {
 	OutFile string `short:"o" long:"output" description:"the output file name" required:"true"`
 }
 
 var initTemplateCommand InitTemplateCommand
 
-// Execute execute the init command
+// Execute execute the init command.
 //nolint:unparam // args required by flags interface
 func (x *InitTemplateCommand) Execute(args []string) error {
 	f, err := os.Create(x.OutFile)
@@ -136,13 +136,13 @@ func (x *InitTemplateCommand) Execute(args []string) error {
 	return GenTemplate(f)
 }
 
-// GenTemplate generate the template
+// GenTemplate generate the template.
 func GenTemplate(writer io.Writer) error {
 	_, err := writer.Write([]byte(configTemplate))
 	return err
 }
 
-// RegisterInitCommand registers the init command with the parser
+// RegisterInitCommand registers the init command with the parser.
 func RegisterInitCommand(p interface {
 	AddCommand(shortDescription string, longDescription string, data string, command any) (any, error)
 }) {

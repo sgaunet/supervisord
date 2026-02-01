@@ -13,7 +13,7 @@ import (
 	"github.com/sgaunet/supervisord/internal/xmlrpcclient"
 )
 
-// CtlCommand the entry of ctl command
+// CtlCommand the entry of ctl command.
 type CtlCommand struct {
 	ServerURL string `short:"s" long:"serverurl" description:"URL on which supervisord server is listening"`
 	User      string `short:"u" long:"user" description:"the user name"`
@@ -21,44 +21,44 @@ type CtlCommand struct {
 	Verbose   bool   `short:"v" long:"verbose" description:"Show verbose debug information"`
 }
 
-// StatusCommand get the status of all supervisor managed programs
+// StatusCommand get the status of all supervisor managed programs.
 type StatusCommand struct {
 }
 
-// StartCommand start the given program
+// StartCommand start the given program.
 type StartCommand struct {
 }
 
-// StopCommand stop the given program
+// StopCommand stop the given program.
 type StopCommand struct {
 }
 
-// RestartCommand restart the given program
+// RestartCommand restart the given program.
 type RestartCommand struct {
 }
 
-// ShutdownCommand shutdown the supervisor
+// ShutdownCommand shutdown the supervisor.
 type ShutdownCommand struct {
 }
 
-// ReloadCommand reload all the programs
+// ReloadCommand reload all the programs.
 type ReloadCommand struct {
 }
 
-// PidCommand get the pid of program
+// PidCommand get the pid of program.
 type PidCommand struct {
 }
 
-// SignalCommand send signal of program
+// SignalCommand send signal of program.
 type SignalCommand struct {
 }
 
-// LogtailCommand tail the stdout/stderr log of program through http interface
+// LogtailCommand tail the stdout/stderr log of program through http interface.
 type LogtailCommand struct {
 }
 
-// CmdCheckWrapperCommand A wrapper can be used to check whether
-// number of parameters is valid or not
+// CmdCheckWrapperCommand A wrapper can be used to check whether.
+// number of parameters is valid or not.
 type CmdCheckWrapperCommand struct {
 	// Original cmd
 	cmd flags.Commander
@@ -140,7 +140,7 @@ func (x *CtlCommand) createRPCClient() *xmlrpcclient.XMLRPCClient {
 	return rpcc
 }
 
-// Execute implements flags.Commander interface to execute the control commands
+// Execute implements flags.Commander interface to execute the control commands.
 //nolint:unparam // Interface signature
 func (x *CtlCommand) Execute(args []string) error {
 	if len(args) == 0 {
@@ -182,7 +182,7 @@ func (x *CtlCommand) Execute(args []string) error {
 	return nil
 }
 
-// get the status of processes
+// get the status of processes.
 func (x *CtlCommand) status(rpcc *xmlrpcclient.XMLRPCClient, processes []string) {
 	processesMap := make(map[string]bool)
 	for _, process := range processes {
@@ -196,8 +196,8 @@ func (x *CtlCommand) status(rpcc *xmlrpcclient.XMLRPCClient, processes []string)
 	}
 }
 
-// start or stop the processes
-// verb must be: start or stop
+// start or stop the processes.
+// verb must be: start or stop.
 func (x *CtlCommand) startStopProcesses(rpcc *xmlrpcclient.XMLRPCClient, verb string, processes []string) {
 	state := map[string]string{
 		"start": "started",
@@ -242,7 +242,7 @@ func (x *CtlCommand) restartProcesses(rpcc *xmlrpcclient.XMLRPCClient, processes
 	x._startStopProcesses(rpcc, "start", processes, "restarted", true)
 }
 
-// shutdown the supervisord
+// shutdown the supervisord.
 func (x *CtlCommand) shutdown(rpcc *xmlrpcclient.XMLRPCClient) {
 	if reply, err := rpcc.Shutdown(); err == nil {
 		if reply.Value {
@@ -256,7 +256,7 @@ func (x *CtlCommand) shutdown(rpcc *xmlrpcclient.XMLRPCClient) {
 	}
 }
 
-// reload all the programs in the supervisord
+// reload all the programs in the supervisord.
 func (x *CtlCommand) reload(rpcc *xmlrpcclient.XMLRPCClient) {
 	if reply, err := rpcc.ReloadConfig(); err == nil {
 		if len(reply.AddedGroup) > 0 {
@@ -274,7 +274,7 @@ func (x *CtlCommand) reload(rpcc *xmlrpcclient.XMLRPCClient) {
 	}
 }
 
-// send signal to one or more processes
+// send signal to one or more processes.
 func (x *CtlCommand) signal(rpcc *xmlrpcclient.XMLRPCClient, sigName string, processes []string) {
 	for _, process := range processes {
 		if process == "all" {
@@ -297,7 +297,7 @@ func (x *CtlCommand) signal(rpcc *xmlrpcclient.XMLRPCClient, sigName string, pro
 	}
 }
 
-// get the pid of running program
+// get the pid of running program.
 func (x *CtlCommand) getPid(rpcc *xmlrpcclient.XMLRPCClient, process string) {
 	procInfo, err := rpcc.GetProcessInfo(process)
 	if err != nil {
@@ -312,7 +312,7 @@ func (x *CtlCommand) getProcessInfo(rpcc *xmlrpcclient.XMLRPCClient, process str
 	return rpcc.GetProcessInfo(process)
 }
 
-// check if group name should be displayed
+// check if group name should be displayed.
 func (x *CtlCommand) showGroupName() bool {
 	val, ok := os.LookupEnv("SUPERVISOR_GROUP_DISPLAY")
 	if !ok {
@@ -359,68 +359,69 @@ func (x *CtlCommand) inProcessMap(procInfo *types.ProcessInfo, processesMap map[
 }
 
 func (x *CtlCommand) getANSIColor(statename string) string {
-	if statename == "RUNNING" {
+	switch statename {
+	case "RUNNING":
 		// green
 		return "\x1b[0;32m"
-	} else if statename == "BACKOFF" || statename == "FATAL" {
+	case "BACKOFF", "FATAL":
 		// red
 		return "\x1b[0;31m"
-	} else {
+	default:
 		// yellow
 		return "\x1b[1;33m"
 	}
 }
 
-// Execute implements flags.Commander interface to get status of program
+// Execute implements flags.Commander interface to get status of program.
 func (sc *StatusCommand) Execute(args []string) error {
 	ctlCommand.status(ctlCommand.createRPCClient(), args)
 	return nil
 }
 
-// Execute start the given programs
+// Execute start the given programs.
 func (sc *StartCommand) Execute(args []string) error {
 	ctlCommand.startStopProcesses(ctlCommand.createRPCClient(), "start", args)
 	return nil
 }
 
-// Execute stop the given programs
+// Execute stop the given programs.
 func (sc *StopCommand) Execute(args []string) error {
 	ctlCommand.startStopProcesses(ctlCommand.createRPCClient(), "stop", args)
 	return nil
 }
 
-// Execute restart the programs
+// Execute restart the programs.
 func (rc *RestartCommand) Execute(args []string) error {
 	ctlCommand.restartProcesses(ctlCommand.createRPCClient(), args)
 	return nil
 }
 
-// Execute shutdown the supervisor
+// Execute shutdown the supervisor.
 func (sc *ShutdownCommand) Execute(args []string) error {
 	ctlCommand.shutdown(ctlCommand.createRPCClient())
 	return nil
 }
 
-// Execute stop the running programs and reload the supervisor configuration
+// Execute stop the running programs and reload the supervisor configuration.
 func (rc *ReloadCommand) Execute(args []string) error {
 	ctlCommand.reload(ctlCommand.createRPCClient())
 	return nil
 }
 
-// Execute send signal to program
+// Execute send signal to program.
 func (rc *SignalCommand) Execute(args []string) error {
 	sigName, processes := args[0], args[1:]
 	ctlCommand.signal(ctlCommand.createRPCClient(), sigName, processes)
 	return nil
 }
 
-// Execute get the pid of program
+// Execute get the pid of program.
 func (pc *PidCommand) Execute(args []string) error {
 	ctlCommand.getPid(ctlCommand.createRPCClient(), args[0])
 	return nil
 }
 
-// Execute tail the stdout/stderr of a program through http interface
+// Execute tail the stdout/stderr of a program through http interface.
 func (lc *LogtailCommand) Execute(args []string) error {
 	program := args[0]
 	go func() {
@@ -461,7 +462,7 @@ func (lc *LogtailCommand) tailLog(program string, dev string) error {
 	}
 }
 
-// Execute check if the number of arguments is ok
+// Execute check if the number of arguments is ok.
 func (wc *CmdCheckWrapperCommand) Execute(args []string) error {
 	if len(args) < wc.leastNumArgs {
 		err := apperrors.NewInvalidArgumentsError("supervisord ctl " + wc.usage)

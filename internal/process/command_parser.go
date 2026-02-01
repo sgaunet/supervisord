@@ -10,7 +10,7 @@ import (
 
 // find the position of byte ch in the string s start from offset.
 //
-// return: -1 if byte ch is not found, >= offset if the ch is found
+// return: -1 if byte ch is not found, >= offset if the ch is found.
 // in the string s from offset.
 func findChar(s string, offset int, ch byte) int {
 	for i := offset; i < len(s); i++ {
@@ -26,7 +26,7 @@ func findChar(s string, offset int, ch byte) int {
 
 // skip all the white space and return the first position of non-space char.
 //
-// return: the first position of non-space char or -1 if all the char
+// return: the first position of non-space char or -1 if all the char.
 // from offset are space.
 func skipSpace(s string, offset int) int {
 	for i := offset; i < len(s); i++ {
@@ -54,6 +54,7 @@ func parseCommand(command string) ([]string, error) {
 			break
 		}
 		i = j
+		//nolint:gocritic // Complex parsing logic with breaks, not suitable for switch
 		for ; j < cmdLen; j++ {
 			if unicode.IsSpace(rune(command[j])) {
 				args = appendArgument(command[i:j], args)

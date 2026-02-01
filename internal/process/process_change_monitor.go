@@ -8,7 +8,7 @@ import (
 
 var fileChangeMonitor = filechangemonitor.NewFileChangeMonitor(10)
 
-// AddProgramChangeMonitor adds program change listener to monitor if the program binary
+// AddProgramChangeMonitor adds program change listener to monitor if the program binary.
 func AddProgramChangeMonitor(path string, fileChangeCb func(path string, mode filechangemonitor.FileChangeMode)) {
 	_ = fileChangeMonitor.AddMonitorFile(path,
 		false,
@@ -17,7 +17,7 @@ func AddProgramChangeMonitor(path string, fileChangeCb func(path string, mode fi
 		filechangemonitor.NewFileMD5CompareInfo()) // Ignore monitor registration error
 }
 
-// AddConfigChangeMonitor adds program change listener to monitor if any of its configuration files is changed
+// AddConfigChangeMonitor adds program change listener to monitor if any of its configuration files is changed.
 func AddConfigChangeMonitor(path string, filePattern string, fileChangeCb func(path string, mode filechangemonitor.FileChangeMode)) {
 	fmt.Printf("filePattern=%s\n", filePattern)
 	_ = fileChangeMonitor.AddMonitorFile(path,

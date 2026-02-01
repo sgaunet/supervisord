@@ -18,7 +18,7 @@ import (
 	"github.com/ochinchina/gorilla-xmlrpc/xml"
 )
 
-// XMLRPCClient the supervisor XML RPC client library
+// XMLRPCClient the supervisor XML RPC client library.
 type XMLRPCClient struct {
 	serverurl string
 	user      string
@@ -27,20 +27,20 @@ type XMLRPCClient struct {
 	verbose   bool
 }
 
-// VersionReply the version reply message from supervisor
+// VersionReply the version reply message from supervisor.
 type VersionReply struct {
 	Value string
 }
 
-// StartStopReply the program start/stop reply message from supervisor
+// StartStopReply the program start/stop reply message from supervisor.
 type StartStopReply struct {
 	Value bool
 }
 
-// ShutdownReply the program shutdown reply message
+// ShutdownReply the program shutdown reply message.
 type ShutdownReply StartStopReply
 
-// AllProcessInfoReply all the processes information from supervisor
+// AllProcessInfoReply all the processes information from supervisor.
 type AllProcessInfoReply struct {
 	Value []types.ProcessInfo
 }
@@ -52,27 +52,27 @@ func init() {
 	emptyReader = io.NopCloser(&buf)
 }
 
-// NewXMLRPCClient creates XMLRPCClient object
+// NewXMLRPCClient creates XMLRPCClient object.
 func NewXMLRPCClient(serverurl string, verbose bool) *XMLRPCClient {
 	return &XMLRPCClient{serverurl: serverurl, timeout: 0, verbose: verbose}
 }
 
-// SetUser sets username for basic http auth
+// SetUser sets username for basic http auth.
 func (r *XMLRPCClient) SetUser(user string) {
 	r.user = user
 }
 
-// SetPassword sets password for basic http auth
+// SetPassword sets password for basic http auth.
 func (r *XMLRPCClient) SetPassword(password string) {
 	r.password = password
 }
 
-// SetTimeout sets http request timeout
+// SetTimeout sets http request timeout.
 func (r *XMLRPCClient) SetTimeout(timeout time.Duration) {
 	r.timeout = timeout
 }
 
-// URL returns RPC url
+// URL returns RPC url.
 func (r *XMLRPCClient) URL() string {
 	return r.serverurl + "/RPC2"
 }
@@ -185,7 +185,7 @@ func (r *XMLRPCClient) post(method string, data any, processBody func(io.ReadClo
 	}
 }
 
-// GetVersion sends http request to acquire software version of supervisord
+// GetVersion sends http request to acquire software version of supervisord.
 func (r *XMLRPCClient) GetVersion() (reply VersionReply, err error) {
 	ins := struct{}{}
 	r.post("supervisor.getVersion", &ins, func(body io.ReadCloser, procError error) {
@@ -197,7 +197,7 @@ func (r *XMLRPCClient) GetVersion() (reply VersionReply, err error) {
 	return
 }
 
-// GetAllProcessInfo requests all info about supervised processes
+// GetAllProcessInfo requests all info about supervised processes.
 func (r *XMLRPCClient) GetAllProcessInfo() (reply AllProcessInfoReply, err error) {
 	ins := struct{}{}
 	r.post("supervisor.getAllProcessInfo", &ins, func(body io.ReadCloser, procError error) {
@@ -210,7 +210,7 @@ func (r *XMLRPCClient) GetAllProcessInfo() (reply AllProcessInfoReply, err error
 	return
 }
 
-// ChangeProcessState requests to change given process state
+// ChangeProcessState requests to change given process state.
 func (r *XMLRPCClient) ChangeProcessState(change string, processName string) (reply StartStopReply, err error) {
 	if change != "start" && change != "stop" {
 		err = apperrors.ErrIncorrectState
@@ -228,7 +228,7 @@ func (r *XMLRPCClient) ChangeProcessState(change string, processName string) (re
 	return
 }
 
-// ChangeAllProcessState requests to change all supervised programs to same state( start/stop )
+// ChangeAllProcessState requests to change all supervised programs to same state( start/stop ).
 func (r *XMLRPCClient) ChangeAllProcessState(change string) (reply AllProcessInfoReply, err error) {
 	if change != "start" && change != "stop" {
 		err = apperrors.ErrIncorrectState
@@ -244,7 +244,7 @@ func (r *XMLRPCClient) ChangeAllProcessState(change string) (reply AllProcessInf
 	return
 }
 
-// Shutdown requests to shut down supervisord
+// Shutdown requests to shut down supervisord.
 func (r *XMLRPCClient) Shutdown() (reply ShutdownReply, err error) {
 	ins := struct{}{}
 	r.post("supervisor.shutdown", &ins, func(body io.ReadCloser, procError error) {
@@ -257,7 +257,7 @@ func (r *XMLRPCClient) Shutdown() (reply ShutdownReply, err error) {
 	return
 }
 
-// ReloadConfig requests supervisord to reload its configuration
+// ReloadConfig requests supervisord to reload its configuration.
 func (r *XMLRPCClient) ReloadConfig() (reply types.ReloadConfigResult, err error) {
 	ins := struct{}{}
 
@@ -288,7 +288,7 @@ func (r *XMLRPCClient) ReloadConfig() (reply types.ReloadConfigResult, err error
 	return
 }
 
-// SignalProcess requests to send signal to program
+// SignalProcess requests to send signal to program.
 func (r *XMLRPCClient) SignalProcess(signal string, name string) (reply types.BooleanReply, err error) {
 	ins := types.ProcessSignal{Name: name, Signal: signal}
 	r.post("supervisor.signalProcess", &ins, func(body io.ReadCloser, procError error) {
@@ -300,7 +300,7 @@ func (r *XMLRPCClient) SignalProcess(signal string, name string) (reply types.Bo
 	return
 }
 
-// SignalAll requests to send signal to all the programs
+// SignalAll requests to send signal to all the programs.
 func (r *XMLRPCClient) SignalAll(signal string) (reply AllProcessInfoReply, err error) {
 	ins := struct{ Signal string }{signal}
 	r.post("supervisor.signalProcess", &ins, func(body io.ReadCloser, procError error) {
@@ -313,7 +313,7 @@ func (r *XMLRPCClient) SignalAll(signal string) (reply AllProcessInfoReply, err 
 	return
 }
 
-// GetProcessInfo requests given supervised process information
+// GetProcessInfo requests given supervised process information.
 func (r *XMLRPCClient) GetProcessInfo(process string) (reply types.ProcessInfo, err error) {
 	ins := struct{ Name string }{process}
 	result := struct{ Reply types.ProcessInfo }{}
@@ -332,7 +332,7 @@ func (r *XMLRPCClient) GetProcessInfo(process string) (reply types.ProcessInfo, 
 	return
 }
 
-// StartProcess Start a process
+// StartProcess Start a process.
 func (r *XMLRPCClient) StartProcess(process string, wait bool) (reply types.BooleanReply, err error) {
 	ins := struct {
 		Name string
@@ -360,7 +360,7 @@ func (r *XMLRPCClient) StartProcess(process string, wait bool) (reply types.Bool
 	return
 }
 
-// StopProcess Stop a process named by name
+// StopProcess Stop a process named by name.
 func (r *XMLRPCClient) StopProcess(process string, wait bool) (reply types.BooleanReply, err error) {
 	ins := struct {
 		Name string
@@ -388,7 +388,7 @@ func (r *XMLRPCClient) StopProcess(process string, wait bool) (reply types.Boole
 	return
 }
 
-// StartAllProcesses Start all processes listed in the configuration file
+// StartAllProcesses Start all processes listed in the configuration file.
 func (r *XMLRPCClient) StartAllProcesses(wait bool) (reply AllProcStatusInfoReply, err error) {
 	ins := struct{ Wait bool }{wait}
 	r.post("supervisor.startAllProcesses", &ins, func(body io.ReadCloser, procError error) {
@@ -400,7 +400,7 @@ func (r *XMLRPCClient) StartAllProcesses(wait bool) (reply AllProcStatusInfoRepl
 	return
 }
 
-// StopAllProcesses Stop all processes in the process list
+// StopAllProcesses Stop all processes in the process list.
 func (r *XMLRPCClient) StopAllProcesses(wait bool) (reply AllProcStatusInfoReply, err error) {
 	ins := struct{ Wait bool }{wait}
 	r.post("supervisor.stopAllProcesses", &ins, func(body io.ReadCloser, procError error) {

@@ -24,7 +24,7 @@ import (
 
 var BuildVersion string = ""
 
-// Options the command line options
+// Options the command line options.
 type Options struct {
 	Configuration string `short:"c" long:"configuration" description:"the configuration file"`
 	Daemon        bool   `short:"d" long:"daemon" description:"run as daemon"`
@@ -100,14 +100,14 @@ func loadEnvFile() {
 	}
 }
 
-// find the supervisord.conf in following order:
+// find the supervisord.conf in following order:.
 //
 // 1. $CWD/supervisord.conf
 // 2. $CWD/etc/supervisord.conf
 // 3. /etc/supervisord.conf
 // 4. /etc/supervisor/supervisord.conf (since Supervisor 3.3.0)
 // 5. ../etc/supervisord.conf (Relative to the executable)
-// 6. ../supervisord.conf (Relative to the executable)
+// 6. ../supervisord.conf (Relative to the executable).
 func findSupervisordConf() (string, error) {
 	possibleSupervisordConf := []string{options.Configuration,
 		"./supervisord.ini",
@@ -147,7 +147,7 @@ func runServer() {
 	}
 }
 
-// Get the supervisord log file
+// Get the supervisord log file.
 func getSupervisordLogFile(configFile string) string {
 	configFileDir := filepath.Dir(configFile)
 	env := config.NewStringExpression("here", configFileDir)

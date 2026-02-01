@@ -93,7 +93,7 @@ func getSyslogPriority(props map[string]string) syslog.Priority {
 	return logLevel | facility
 }
 
-// NewSysLogger creates local syslog
+// NewSysLogger creates local syslog.
 func NewSysLogger(name string, props map[string]string, logEventEmitter LogEventEmitter) *SysLogger {
 	priority := getSyslogPriority(props)
 	tag := name
@@ -108,7 +108,7 @@ func NewSysLogger(name string, props map[string]string, logEventEmitter LogEvent
 	return logger
 }
 
-// BackendSysLogWriter a syslog writer to write the log to syslog in background
+// BackendSysLogWriter a syslog writer to write the log to syslog in background.
 type BackendSysLogWriter struct {
 	network    string
 	raddr      string
@@ -117,7 +117,7 @@ type BackendSysLogWriter struct {
 	logChannel chan []byte
 }
 
-// NewBackendSysLogWriter creates background syslog writer
+// NewBackendSysLogWriter creates background syslog writer.
 func NewBackendSysLogWriter(network, raddr string, priority syslog.Priority, tag string) *BackendSysLogWriter {
 	bs := &BackendSysLogWriter{network: network, raddr: raddr, priority: priority, tag: tag, logChannel: make(chan []byte)}
 	bs.start()
@@ -147,23 +147,23 @@ func (bs *BackendSysLogWriter) start() {
 	}()
 }
 
-// Write data to the backend syslog writer
+// Write data to the backend syslog writer.
 func (bs *BackendSysLogWriter) Write(b []byte) (int, error) {
 	bs.logChannel <- b
 	return len(b), nil
 }
 
-// Close background write channel
+// Close background write channel.
 func (bs *BackendSysLogWriter) Close() error {
 	close(bs.logChannel)
 	return nil
 }
 
-// parse the configuration for syslog, it should be in following format:
+// parse the configuration for syslog, it should be in following format:.
 // [protocol:]host[:port]
 //
 // - protocol, could be tcp or udp, assuming udp as default
-// - port, if missing, by default for tcp is 6514 and for udp - 514
+// - port, if missing, by default for tcp is 6514 and for udp - 514.
 //
 func parseSysLogConfig(config string) (protocol string, host string, port int, err error) {
 	fields := strings.Split(config, ":")
@@ -211,7 +211,7 @@ func parseSysLogConfig(config string) (protocol string, host string, port int, e
 	return protocol, host, port, err
 }
 
-// NewRemoteSysLogger creates network syslog logger object
+// NewRemoteSysLogger creates network syslog logger object.
 func NewRemoteSysLogger(name string, config string, props map[string]string, logEventEmitter LogEventEmitter) *SysLogger {
 	if len(config) == 0 {
 		return NewSysLogger(name, props, logEventEmitter)

@@ -9,18 +9,18 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Logtail tails the process log through http interface
+// Logtail tails the process log through http interface.
 type Logtail struct {
 	router     *mux.Router
 	supervisor *supervisor.Supervisor
 }
 
-// NewLogtail creates a Logtail object
+// NewLogtail creates a Logtail object.
 func NewLogtail(s *supervisor.Supervisor) *Logtail {
 	return &Logtail{router: mux.NewRouter(), supervisor: s}
 }
 
-// CreateHandler creates http handlers to process the program stdout and stderr through http interface
+// CreateHandler creates http handlers to process the program stdout and stderr through http interface.
 func (lt *Logtail) CreateHandler() http.Handler {
 	lt.router.HandleFunc("/logtail/{program}/stdout", lt.getStdoutLog).Methods("GET")
 	lt.router.HandleFunc("/logtail/{program}/stderr", lt.getStderrLog).Methods("GET")

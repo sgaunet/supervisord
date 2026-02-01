@@ -14,12 +14,12 @@ type ConfApi struct {
 	supervisor *supervisor.Supervisor
 }
 
-// NewConfApi creates a ConfApi object
+// NewConfApi creates a ConfApi object.
 func NewConfApi(s *supervisor.Supervisor) *ConfApi {
 	return &ConfApi{router: mux.NewRouter(), supervisor: s}
 }
 
-// CreateHandler creates http handlers to process the program stdout and stderr through http interface
+// CreateHandler creates http handlers to process the program stdout and stderr through http interface.
 func (ca *ConfApi) CreateHandler() http.Handler {
 	ca.router.HandleFunc("/conf/{program}", ca.getProgramConfFile).Methods("GET")
 	return ca.router

@@ -50,7 +50,7 @@ func NewProcCollector(mgr *Manager) *procCollector {
 	}
 }
 
-// Describe generates prometheus metric description
+// Describe generates prometheus metric description.
 func (c *procCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.upDesc
 	ch <- c.stateDesc
@@ -58,7 +58,7 @@ func (c *procCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.startTimeDesc
 }
 
-// Collect gathers prometheus metrics for all supervised processes
+// Collect gathers prometheus metrics for all supervised processes.
 func (c *procCollector) Collect(ch chan<- prometheus.Metric) {
 	c.procMgr.ForEachProcess(func(proc *Process) {
 		c.collectProcessMetrics(proc, ch)

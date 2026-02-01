@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var ErrFailedToGetPid = errors.New("failed to get pid from file")
+
 func installSignalAndForward(pidfile string, exitIfDaemonStopped bool) {
 	c := make(chan os.Signal, 1)
 	installSignal(c)
@@ -71,12 +73,12 @@ func readPid(pidfile string) (int, error) {
 	//nolint:gosec // G304: Trusted pidfile path from command argument
 	file, err := os.Open(pidfile)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		pid := 0
 		n, err := fmt.Fscanf(file, "%d", &pid)
 		if err == nil {
 			if n != 1 {
-				return pid, errors.New("Fail to get pid from file")
+				return pid, ErrFailedToGetPid
 			}
 			return pid, nil
 		}

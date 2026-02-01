@@ -5,31 +5,31 @@ import (
 	"strings"
 )
 
-// ProgramByPriority sort program by its priority
+// ProgramByPriority sort program by its priority.
 type ProgramByPriority []*Entry
 
-// Len returns amount of programs
+// Len returns amount of programs.
 func (p ProgramByPriority) Len() int {
 	return len(p)
 }
 
-// Swap swaps program i and program j
+// Swap swaps program i and program j.
 func (p ProgramByPriority) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-// Less returns true if the priority i-th program is less than the priority of j-th program
+// Less returns true if the priority i-th program is less than the priority of j-th program.
 func (p ProgramByPriority) Less(i, j int) bool {
 	return p[i].GetInt("priority", 999) < p[j].GetInt("priority", 999)
 }
 
-// ProcessSorter sort the program by its priority
+// ProcessSorter sort the program by its priority.
 type ProcessSorter struct {
 	dependsOnGraph       map[string][]string
 	procsWithooutDepends []*Entry
 }
 
-// NewProcessSorter creates sorter
+// NewProcessSorter creates sorter.
 func NewProcessSorter() *ProcessSorter {
 	return &ProcessSorter{dependsOnGraph: make(map[string][]string),
 		procsWithooutDepends: make([]*Entry, 0)}
@@ -134,7 +134,7 @@ func (p *ProcessSorter) inFinishedPrograms(programName string, finishedPrograms 
 	return result
 }*/
 
-// SortProgram sort the program  and return the result
+// SortProgram sort the program  and return the result.
 func (p *ProcessSorter) SortProgram(programConfigs []*Entry) []*Entry {
 	p.initDepends(programConfigs)
 	p.initProgramWithoutDepends(programConfigs)

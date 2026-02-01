@@ -54,9 +54,9 @@ func ToSignal(signalName string) (os.Signal, error) {
 	return syscall.SIGTERM, nil
 }
 
-// Kill send signal to the process
+// Kill send signal to the process.
 //
-// Args:
+// Args:.
 //    process - the process which the signal should be sent to
 //    sig - the signal will be sent
 //    sigChildren - true if the signal needs to be sent to the children also
