@@ -34,6 +34,7 @@ func toSyslogLevel(logLevel string) syslog.Priority {
 	}
 }
 
+//nolint:cyclop,funlen // Syslog has 17 standard facilities, all cases needed for complete mapping
 func toSyslogFacility(facility string) syslog.Priority {
 	switch strings.ToUpper(facility) {
 	case "KERN", "KERNEL", "LOG_KERN", "LOG_KERNEL":

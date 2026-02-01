@@ -129,39 +129,55 @@ func (c *Config) Load() ([]string, error) {
 	return c.parse(myini), nil
 }
 
-func (c *Config) getIncludeFiles(cfg *ini.Ini) []string {
+func resolveIncludePath(f string, configDir string) string {
+	if filepath.IsAbs(f) {
+		return filepath.Dir(f)
+	}
+	return filepath.Join(configDir, filepath.Dir(f))
+}
+
+func findMatchingFiles(dir string, pattern string) []string {
 	result := make([]string, 0)
-	if includeSection, err := cfg.GetSection("include"); err == nil {
-		key, err := includeSection.GetValue("files")
-		if err == nil {
-			env := NewStringExpression("here", c.GetConfigFileDir())
-			files := make([]string, 0)
-			for field := range strings.FieldsSeq(key) {
-				files = append(files, field)
-			}
-			for _, fRaw := range files {
-				f, err := env.Eval(fRaw)
-				if err != nil {
-					continue
-				}
-				var dir string
-				if filepath.IsAbs(f) {
-					dir = filepath.Dir(f)
-				} else {
-					dir = filepath.Join(c.GetConfigFileDir(), filepath.Dir(f))
-				}
-				fileInfos, err := os.ReadDir(dir)
-				if err == nil {
-					goPattern := toRegexp(filepath.Base(f))
-					for _, fileInfo := range fileInfos {
-						if matched, err := regexp.MatchString(goPattern, fileInfo.Name()); matched && err == nil {
-							result = append(result, filepath.Join(dir, fileInfo.Name()))
-						}
-					}
-				}
+	fileInfos, err := os.ReadDir(dir)
+	if err == nil {
+		goPattern := toRegexp(filepath.Base(pattern))
+		for _, fileInfo := range fileInfos {
+			if matched, err := regexp.MatchString(goPattern, fileInfo.Name()); matched && err == nil {
+				result = append(result, filepath.Join(dir, fileInfo.Name()))
 			}
 		}
 	}
+	return result
+}
+
+func (c *Config) getIncludeFiles(cfg *ini.Ini) []string {
+	result := make([]string, 0)
+	includeSection, err := cfg.GetSection("include")
+	if err != nil {
+		return result
+	}
+
+	key, err := includeSection.GetValue("files")
+	if err != nil {
+		return result
+	}
+
+	env := NewStringExpression("here", c.GetConfigFileDir())
+	files := make([]string, 0)
+	for field := range strings.FieldsSeq(key) {
+		files = append(files, field)
+	}
+
+	for _, fRaw := range files {
+		f, err := env.Eval(fRaw)
+		if err != nil {
+			continue
+		}
+		dir := resolveIncludePath(f, c.GetConfigFileDir())
+		matchedFiles := findMatchingFiles(dir, f)
+		result = append(result, matchedFiles...)
+	}
+
 	return result
 }
 
@@ -333,6 +349,31 @@ func (c *Entry) GetInt(key string, defValue int) int {
 	return defValue
 }
 
+func parseEnvValue(s string, start int, n int, key string, result map[string]string) (int, bool) {
+	var i int
+	if s[start] == '"' {
+		for i = start + 1; i < n && s[i] != '"'; {
+			i++
+		}
+		if i < n {
+			result[strings.TrimSpace(key)] = strings.TrimSpace(s[start+1 : i])
+		}
+		if i+1 < n && s[i+1] == ',' {
+			return i + 2, true
+		}
+		return i, false
+	}
+	for i = start; i < n && s[i] != ','; {
+		i++
+	}
+	if i < n {
+		result[strings.TrimSpace(key)] = strings.TrimSpace(s[start:i])
+		return i + 1, true
+	}
+	result[strings.TrimSpace(key)] = strings.TrimSpace(s[start:])
+	return i, false
+}
+
 func parseEnv(s string) *map[string]string {
 	result := make(map[string]string)
 	start := 0
@@ -349,30 +390,10 @@ func parseEnv(s string) *map[string]string {
 		}
 
 		key := s[start:i]
-		start = i + 1
-		if s[start] == '"' {
-			for i = start + 1; i < n && s[i] != '"'; {
-				i++
-			}
-			if i < n {
-				result[strings.TrimSpace(key)] = strings.TrimSpace(s[start+1 : i])
-			}
-			if i+1 < n && s[i+1] == ',' {
-				start = i + 2
-			} else {
-				break
-			}
-		} else {
-			for i = start; i < n && s[i] != ','; {
-				i++
-			}
-			if i < n {
-				result[strings.TrimSpace(key)] = strings.TrimSpace(s[start:i])
-				start = i + 1
-			} else {
-				result[strings.TrimSpace(key)] = strings.TrimSpace(s[start:])
-				break
-			}
+		var shouldContinue bool
+		start, shouldContinue = parseEnvValue(s, i+1, n, key, result)
+		if !shouldContinue {
+			break
 		}
 	}
 
@@ -569,6 +590,40 @@ func (c *Config) isProgramOrEventListener(section *ini.Section) (bool, string) {
 	return isProgram || isEventListener, prefix
 }
 
+func validateProcessName(numProcs int, procName string, err error) {
+	if numProcs > 1 {
+		if err != nil || !strings.Contains(procName, "%(process_num)") {
+			log.WithFields(log.Fields{
+				"numprocs":     numProcs,
+				"process_name": procName,
+			}).Error("no process_num in process name")
+		}
+	}
+}
+
+func (c *Config) createProcessEnvironment(programName string, processNum int, section *ini.Section) *StringExpression {
+	envs := NewStringExpression("program_name", programName,
+		"process_num", strconv.Itoa(processNum),
+		"group_name", c.ProgramGroup.GetGroup(programName, programName),
+		"here", c.GetConfigFileDir())
+	envValue, err := section.GetValue("environment")
+	if err == nil {
+		for k, v := range *parseEnv(envValue) {
+			envs.Add("ENV_"+k, v)
+		}
+	}
+	return envs
+}
+
+func (c *Config) createProgramEntry(section *ini.Section, prefix string, procName string, programName string) *Entry {
+	entry := c.createEntry(procName, c.GetConfigFileDir())
+	entry.parse(section)
+	entry.Name = prefix + procName
+	group := c.ProgramGroup.GetGroup(programName, programName)
+	entry.Group = group
+	return entry
+}
+
 // parse the sections starts with "program:" prefix.
 //
 // Return all the parsed program names in the ini.
@@ -586,14 +641,8 @@ func (c *Config) parseProgram(cfg *ini.Ini) []string {
 				numProcs = 1
 			}
 			procName, err := section.GetValue("process_name")
-			if numProcs > 1 {
-				if err != nil || !strings.Contains(procName, "%(process_num)") {
-					log.WithFields(log.Fields{
-						"numprocs":     numProcs,
-						"process_name": procName,
-					}).Error("no process_num in process name")
-				}
-			}
+			validateProcessName(numProcs, procName, err)
+
 			originalProcName := programName
 			if err == nil {
 				originalProcName = procName
@@ -602,16 +651,7 @@ func (c *Config) parseProgram(cfg *ini.Ini) []string {
 			originalCmd := section.GetValueWithDefault("command", "")
 
 			for i := 1; i <= numProcs; i++ {
-				envs := NewStringExpression("program_name", programName,
-					"process_num", strconv.Itoa(i),
-					"group_name", c.ProgramGroup.GetGroup(programName, programName),
-					"here", c.GetConfigFileDir())
-				envValue, err := section.GetValue("environment")
-				if err == nil {
-					for k, v := range *parseEnv(envValue) {
-						envs.Add("ENV_"+k, v)
-					}
-				}
+				envs := c.createProcessEnvironment(programName, i, section)
 				cmd, err := envs.Eval(originalCmd)
 				if err != nil {
 					log.WithFields(log.Fields{
@@ -634,11 +674,7 @@ func (c *Config) parseProgram(cfg *ini.Ini) []string {
 				section.Add("process_name", procName)
 				section.Add("numprocs_start", strconv.Itoa(i-1))
 				section.Add("process_num", strconv.Itoa(i))
-				entry := c.createEntry(procName, c.GetConfigFileDir())
-				entry.parse(section)
-				entry.Name = prefix + procName
-				group := c.ProgramGroup.GetGroup(programName, programName)
-				entry.Group = group
+				_ = c.createProgramEntry(section, prefix, procName, programName)
 				loadedPrograms = append(loadedPrograms, procName)
 			}
 		}

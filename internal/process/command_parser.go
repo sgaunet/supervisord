@@ -44,6 +44,25 @@ func appendArgument(arg string, args []string) []string {
 	return append(args, arg)
 }
 
+func parseNextArgument(command string, start int, cmdLen int) (arg string, nextPos int) {
+	i := start
+	//nolint:gocritic // Complex parsing logic with breaks, not suitable for switch
+	for j := start; j < cmdLen; j++ {
+		if unicode.IsSpace(rune(command[j])) {
+			return command[i:j], j + 1
+		} else if command[j] == '\\' {
+			j++
+		} else if command[j] == '"' || command[j] == '\'' {
+			k := findChar(command, j+1, command[j])
+			if k == -1 {
+				return command[i:], cmdLen
+			}
+			return command[i : k+1], k + 1
+		}
+	}
+	return command[i:], cmdLen
+}
+
 func parseCommand(command string) ([]string, error) {
 	args := make([]string, 0)
 	cmdLen := len(command)
@@ -53,31 +72,9 @@ func parseCommand(command string) ([]string, error) {
 		if j == -1 {
 			break
 		}
-		i = j
-		//nolint:gocritic // Complex parsing logic with breaks, not suitable for switch
-		for ; j < cmdLen; j++ {
-			if unicode.IsSpace(rune(command[j])) {
-				args = appendArgument(command[i:j], args)
-				i = j + 1
-				break
-			} else if command[j] == '\\' {
-				j++
-			} else if command[j] == '"' || command[j] == '\'' {
-				k := findChar(command, j+1, command[j])
-				if k == -1 {
-					args = appendArgument(command[i:], args)
-					i = cmdLen
-				} else {
-					args = appendArgument(command[i:k+1], args)
-					i = k + 1
-				}
-				break
-			}
-		}
-		if j >= cmdLen {
-			args = appendArgument(command[i:], args)
-			i = cmdLen
-		}
+		arg, nextPos := parseNextArgument(command, j, cmdLen)
+		args = appendArgument(arg, args)
+		i = nextPos
 	}
 	if len(args) == 0 {
 		return nil, apperrors.ErrNoCommandFromString

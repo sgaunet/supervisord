@@ -138,14 +138,7 @@ func readLogHtml(writer http.ResponseWriter, request *http.Request) {
 	_, _ = writer.Write(b)
 }
 
-func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, listenAddr string, s *supervisor.Supervisor, startedCb func()) {
-	if p.isHTTPServerStartedOnProtocol(protocol) {
-		startedCb()
-		return
-	}
-	procCollector := process.NewProcCollector(s.GetManager())
-	_ = prometheus.Register(procCollector)
-	mux := http.NewServeMux()
+func (p *XMLRPC) registerHTTPHandlers(mux *http.ServeMux, user string, password string, s *supervisor.Supervisor) {
 	mux.Handle("/RPC2", newHTTPBasicAuth(user, password, p.createRPCServer(s)))
 
 	progRestHandler := NewSupervisorRestful(s).CreateProgramHandler()
@@ -195,6 +188,17 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 		dir := filepath.Dir(filePath)
 		mux.Handle("/log/"+realName+"/", http.StripPrefix("/log/"+realName+"/", http.FileServer(http.Dir(dir))))
 	}
+}
+
+func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, listenAddr string, s *supervisor.Supervisor, startedCb func()) {
+	if p.isHTTPServerStartedOnProtocol(protocol) {
+		startedCb()
+		return
+	}
+	procCollector := process.NewProcCollector(s.GetManager())
+	_ = prometheus.Register(procCollector)
+	mux := http.NewServeMux()
+	p.registerHTTPHandlers(mux, user, password, s)
 
 	listener, err := net.Listen(protocol, listenAddr)
 	if err == nil {

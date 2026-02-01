@@ -11,6 +11,29 @@ import (
 
 var ErrFailedToGetPid = errors.New("failed to get pid from file")
 
+func handleSignal(sig os.Signal, pidfile string) {
+	fmt.Printf("Get a signal %v\n", sig)
+	if allowForwardSig(sig) {
+		forwardSignal(sig, pidfile)
+	}
+
+	if sig == syscall.SIGTERM ||
+		sig == syscall.SIGINT ||
+		sig == syscall.SIGQUIT {
+		os.Exit(0)
+	}
+}
+
+func checkProcessAlive(pidfile string, exitIfDaemonStopped bool) {
+	pid, err := readPid(pidfile)
+	if err == nil && !isProcessAlive(pid) {
+		fmt.Printf("Process %d is not alive\n", pid)
+		if exitIfDaemonStopped {
+			os.Exit(1)
+		}
+	}
+}
+
 func installSignalAndForward(pidfile string, exitIfDaemonStopped bool) {
 	c := make(chan os.Signal, 1)
 	installSignal(c)
@@ -19,25 +42,10 @@ func installSignalAndForward(pidfile string, exitIfDaemonStopped bool) {
 	for {
 		select {
 		case sig := <-c:
-			fmt.Printf("Get a signal %v\n", sig)
-			if allowForwardSig(sig) {
-				forwardSignal(sig, pidfile)
-			}
-
-			if sig == syscall.SIGTERM ||
-				sig == syscall.SIGINT ||
-				sig == syscall.SIGQUIT {
-				os.Exit(0)
-			}
+			handleSignal(sig, pidfile)
 		case <-timer:
 			timer = time.After(5 * time.Second)
-			pid, err := readPid(pidfile)
-			if err == nil && !isProcessAlive(pid) {
-				fmt.Printf("Process %d is not alive\n", pid)
-				if exitIfDaemonStopped {
-					os.Exit(1)
-				}
-			}
+			checkProcessAlive(pidfile, exitIfDaemonStopped)
 		}
 	}
 }

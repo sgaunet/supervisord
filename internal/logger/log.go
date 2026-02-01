@@ -146,6 +146,30 @@ func (l *FileLogger) ClearAllLogFile() error {
 	return nil
 }
 
+func calculateReadParams(offset int64, length int64, fileLen int64) (int64, int64, bool) {
+	switch {
+	case offset < 0: // offset < 0 && length == 0
+		offset = fileLen + offset
+		offset = max(offset, 0)
+		length = fileLen - offset
+	case length == 0: // offset >= 0 && length == 0
+		if offset > fileLen {
+			return 0, 0, false // empty result
+		}
+		length = fileLen - offset
+	default: // offset >= 0 && length > 0
+		// if the offset exceeds the length of file
+		if offset >= fileLen {
+			return 0, 0, false // empty result
+		}
+		// compute actual bytes should be read
+		if offset+length > fileLen {
+			length = fileLen - offset
+		}
+	}
+	return offset, length, true
+}
+
 // ReadLog reads log from current logfile.
 func (l *FileLogger) ReadLog(offset int64, length int64) (string, error) {
 	if offset < 0 && length != 0 {
@@ -171,28 +195,9 @@ func (l *FileLogger) ReadLog(offset int64, length int64) (string, error) {
 	}
 
 	fileLen := statInfo.Size()
-
-	switch {
-	case offset < 0: // offset < 0 && length == 0
-		offset = fileLen + offset
-		offset = max(offset, 0)
-		length = fileLen - offset
-	case length == 0: // offset >= 0 && length == 0
-		if offset > fileLen {
-			return "", nil
-		}
-		length = fileLen - offset
-	default: // offset >= 0 && length > 0
-		// if the offset exceeds the length of file
-		if offset >= fileLen {
-			return "", nil
-		}
-
-		// compute actual bytes should be read
-
-		if offset+length > fileLen {
-			length = fileLen - offset
-		}
+	offset, length, shouldRead := calculateReadParams(offset, length, fileLen)
+	if !shouldRead {
+		return "", nil
 	}
 
 	b := make([]byte, length)

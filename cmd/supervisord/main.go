@@ -61,6 +61,27 @@ func initSignals(s *supervisor.Supervisor) {
 var options Options
 var parser = flags.NewParser(&options, flags.Default & ^flags.PrintErrors)
 
+func processEnvLine(line string) {
+	// if line starts with '#', it is a comment line, ignore it
+	line = strings.TrimSpace(line)
+	if len(line) > 0 && line[0] == '#' {
+		return
+	}
+	// if environment variable is exported with "export"
+	if strings.HasPrefix(line, "export") && len(line) > len("export") && unicode.IsSpace(rune(line[len("export")])) {
+		line = strings.TrimSpace(line[len("export"):])
+	}
+	// split the environment variable with "="
+	if k, v, ok := strings.Cut(line, "="); ok {
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+		// if key and value are not empty, put it into the environment
+		if len(k) > 0 && len(v) > 0 {
+			_ = os.Setenv(k, v)
+		}
+	}
+}
+
 func loadEnvFile() {
 	if len(options.EnvFile) == 0 {
 		return
@@ -79,24 +100,7 @@ func loadEnvFile() {
 		if err != nil {
 			break
 		}
-		// if line starts with '#', it is a comment line, ignore it
-		line = strings.TrimSpace(line)
-		if len(line) > 0 && line[0] == '#' {
-			continue
-		}
-		// if environment variable is exported with "export"
-		if strings.HasPrefix(line, "export") && len(line) > len("export") && unicode.IsSpace(rune(line[len("export")])) {
-			line = strings.TrimSpace(line[len("export"):])
-		}
-		// split the environment variable with "="
-		if k, v, ok := strings.Cut(line, "="); ok {
-			k = strings.TrimSpace(k)
-			v = strings.TrimSpace(v)
-			// if key and value are not empty, put it into the environment
-			if len(k) > 0 && len(v) > 0 {
-				_ = os.Setenv(k, v)
-			}
-		}
+		processEnvLine(line)
 	}
 }
 

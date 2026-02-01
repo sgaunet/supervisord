@@ -29,6 +29,16 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
+func handleServiceActionResult(action string, err error) error {
+	if err != nil {
+		log.Errorf("Failed to %s service go-supervisord: %v", action, err)
+		fmt.Printf("Failed to %s service go-supervisord: %v\n", action, err)
+		return err
+	}
+	fmt.Printf("Succeed to %s service go-supervisord\n", action)
+	return nil
+}
+
 // Execute implement Execute() method defined in flags.Commander interface, executes the given command.
 func (sc ServiceCommand) Execute(args []string) error {
 	if len(args) == 0 {
@@ -60,43 +70,14 @@ func (sc ServiceCommand) Execute(args []string) error {
 	action := args[0]
 	switch action {
 	case "install":
-		err := s.Install()
-		if err != nil {
-			log.Error("Failed to install service go-supervisord: ", err)
-			fmt.Println("Failed to install service go-supervisord: ", err)
-			return err
-		} else {
-			fmt.Println("Succeed to install service go-supervisord")
-		}
+		return handleServiceActionResult(action, s.Install())
 	case "uninstall":
 		_ = s.Stop()
-		err := s.Uninstall()
-		if err != nil {
-			log.Error("Failed to uninstall service go-supervisord: ", err)
-			fmt.Println("Failed to uninstall service go-supervisord: ", err)
-			return err
-		} else {
-			fmt.Println("Succeed to uninstall service go-supervisord")
-		}
+		return handleServiceActionResult(action, s.Uninstall())
 	case "start":
-		err := s.Start()
-		if err != nil {
-			log.Error("Failed to start service: ", err)
-			fmt.Println("Failed to start service: ", err)
-			return err
-		} else {
-			fmt.Println("Succeed to start service go-supervisord")
-		}
+		return handleServiceActionResult(action, s.Start())
 	case "stop":
-		err := s.Stop()
-		if err != nil {
-			log.Error("Failed to stop service: ", err)
-			fmt.Println("Failed to stop service: ", err)
-			return err
-		} else {
-			fmt.Println("Succeed to stop service go-supervisord")
-		}
-
+		return handleServiceActionResult(action, s.Stop())
 	default:
 		showUsage()
 	}
