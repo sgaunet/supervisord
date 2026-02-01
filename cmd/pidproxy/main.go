@@ -80,18 +80,20 @@ func forwardSignal(sig os.Signal, pidfile string) {
 func readPid(pidfile string) (int, error) {
 	//nolint:gosec // G304: Trusted pidfile path from command argument
 	file, err := os.Open(pidfile)
-	if err == nil {
-		defer func() { _ = file.Close() }()
-		pid := 0
-		n, err := fmt.Fscanf(file, "%d", &pid)
-		if err == nil {
-			if n != 1 {
-				return pid, ErrFailedToGetPid
-			}
-			return pid, nil
-		}
+	if err != nil {
+		return 0, fmt.Errorf("failed to open pidfile %s: %w", pidfile, err)
 	}
-	return 0, err
+	defer func() { _ = file.Close() }()
+
+	pid := 0
+	n, err := fmt.Fscanf(file, "%d", &pid)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse pid from %s: %w", pidfile, err)
+	}
+	if n != 1 {
+		return pid, ErrFailedToGetPid
+	}
+	return pid, nil
 }
 
 func startApplication(command string, args []string) {

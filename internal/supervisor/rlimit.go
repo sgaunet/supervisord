@@ -23,13 +23,13 @@ func (s *Supervisor) getMinRequiredRes(resourceName string) (uint64, error) {
 	if entry, ok := s.config.GetSupervisord(); ok {
 		intVal := entry.GetInt(resourceName, 0)
 		if intVal < 0 {
-			return 0, apperrors.NewNegativeValueError(resourceName)
+			return 0, apperrors.NewNegativeValueError(resourceName) //nolint:wrapcheck // Internal error type with context
 		}
 		value := uint64(intVal)
 		if value > 0 {
 			return value, nil
 		}
-		return 0, apperrors.NewNoSuchKeyError(resourceName)
+		return 0, apperrors.NewNoSuchKeyError(resourceName) //nolint:wrapcheck // Internal error type with context
 	}
 	return 0, apperrors.ErrNoSupervisordSection
 }
@@ -38,12 +38,12 @@ func (s *Supervisor) checkMinLimit(resource int, resourceName string, minRequire
 	var limit syscall.Rlimit
 
 	if syscall.Getrlimit(resource, &limit) != nil {
-		return apperrors.NewFailedToGetLimitError(resourceName)
+		return apperrors.NewFailedToGetLimitError(resourceName) //nolint:wrapcheck // Internal error type with context
 	}
 
 	if minRequiredSource > limit.Max {
 		//nolint:gosec // G115: Conversion validated by system limits
-		return apperrors.NewLimitExceedsHardError(resourceName, int64(minRequiredSource), int64(limit.Max))
+		return apperrors.NewLimitExceedsHardError(resourceName, int64(minRequiredSource), int64(limit.Max)) //nolint:wrapcheck // Internal error type with context
 	}
 
 	if limit.Cur >= minRequiredSource {
@@ -53,7 +53,7 @@ func (s *Supervisor) checkMinLimit(resource int, resourceName string, minRequire
 	limit.Cur = limit.Max
 	if syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limit) != nil {
 		//nolint:gosec // G115: Conversion validated by system limits
-		return apperrors.NewFailedToSetLimitError(resourceName, int64(limit.Cur))
+		return apperrors.NewFailedToSetLimitError(resourceName, int64(limit.Cur)) //nolint:wrapcheck // Internal error type with context
 	}
 	return nil
 }

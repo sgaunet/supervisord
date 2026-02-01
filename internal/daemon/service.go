@@ -64,7 +64,7 @@ func (sc ServiceCommand) Execute(args []string) error {
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
 		log.Error("service init failed", err)
-		return err
+		return fmt.Errorf("failed to create service: %w", err)
 	}
 
 	action := args[0]

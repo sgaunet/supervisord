@@ -1,6 +1,7 @@
 package process
 
 import (
+	"fmt"
 	"os/exec"
 	"syscall"
 	"unicode"
@@ -116,5 +117,8 @@ func executeCommand(command any) error {
 		return err
 	}
 	_, err = cmd.CombinedOutput()
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to execute command %v: %w", command, err)
+	}
+	return nil
 }

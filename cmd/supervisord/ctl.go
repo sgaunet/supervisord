@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/jessevdk/go-flags"
-	apperrors "github.com/sgaunet/supervisord/internal/errors"
 	"github.com/sgaunet/supervisord/internal/config"
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 	"github.com/sgaunet/supervisord/internal/types"
 	"github.com/sgaunet/supervisord/internal/xmlrpcclient"
 )
@@ -141,6 +142,7 @@ func (x *CtlCommand) createRPCClient() *xmlrpcclient.XMLRPCClient {
 }
 
 // Execute implements flags.Commander interface to execute the control commands.
+//
 //nolint:unparam // Interface signature
 func (x *CtlCommand) Execute(args []string) error {
 	if len(args) == 0 {
@@ -309,7 +311,11 @@ func (x *CtlCommand) getPid(rpcc *xmlrpcclient.XMLRPCClient, process string) {
 }
 
 func (x *CtlCommand) getProcessInfo(rpcc *xmlrpcclient.XMLRPCClient, process string) (types.ProcessInfo, error) {
-	return rpcc.GetProcessInfo(process)
+	info, err := rpcc.GetProcessInfo(process)
+	if err != nil {
+		return info, fmt.Errorf("failed to get process info for %s: %w", process, err)
+	}
+	return info, nil
 }
 
 // check if group name should be displayed.
@@ -439,20 +445,23 @@ func (lc *LogtailCommand) tailLog(program string, dev string) error {
 	url := fmt.Sprintf("%s/logtail/%s/%s", ctlCommand.getServerURL(), program, dev)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create HTTP request for %s: %w", url, err)
 	}
 	req.SetBasicAuth(ctlCommand.getUser(), ctlCommand.getPassword())
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute HTTP request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	buf := make([]byte, 10240)
 	for {
 		n, err := resp.Body.Read(buf)
-		if err != nil {
-			return err
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
+		if err == io.EOF {
+			return nil
 		}
 		if dev == "stdout" {
 			_, _ = os.Stdout.Write(buf[0:n])
@@ -467,9 +476,12 @@ func (wc *CmdCheckWrapperCommand) Execute(args []string) error {
 	if len(args) < wc.leastNumArgs {
 		err := apperrors.NewInvalidArgumentsError("supervisord ctl " + wc.usage)
 		fmt.Printf("%v\n", err)
-		return err
+		return err //nolint:wrapcheck // Internal error type with context
 	}
-	return wc.cmd.Execute(args)
+	if err := wc.cmd.Execute(args); err != nil {
+		return fmt.Errorf("command execution failed: %w", err)
+	}
+	return nil
 }
 
 func init() {

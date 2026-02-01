@@ -1,8 +1,9 @@
-// +build darwin
+//go:build darwin
 
 package signals
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -57,18 +58,21 @@ func ToSignal(signalName string) (os.Signal, error) {
 // Kill send signal to the process.
 //
 // Args:.
-//    process - the process which the signal should be sent to
-//    sig - the signal will be sent
-//    sigChildren - true if the signal needs to be sent to the children also
 //
+//	process - the process which the signal should be sent to
+//	sig - the signal will be sent
+//	sigChildren - true if the signal needs to be sent to the children also
 func Kill(process *os.Process, sig os.Signal, sigChildren bool) error {
 	localSig, ok := sig.(syscall.Signal)
 	if !ok {
-		return apperrors.NewInvalidSignalTypeError(sig)
+		return apperrors.NewInvalidSignalTypeError(sig) //nolint:wrapcheck // Internal error type with context
 	}
 	pid := process.Pid
 	if sigChildren {
 		pid = -pid
 	}
-	return syscall.Kill(pid, localSig)
+	if err := syscall.Kill(pid, localSig); err != nil {
+		return fmt.Errorf("failed to send signal %v to pid %d: %w", sig, pid, err)
+	}
+	return nil
 }

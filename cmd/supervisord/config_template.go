@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
@@ -128,7 +129,7 @@ var initTemplateCommand InitTemplateCommand
 func (x *InitTemplateCommand) Execute(args []string) error {
 	f, err := os.Create(x.OutFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create config file: %w", err)
 	}
 	defer func(f *os.File) {
 		_ = f.Close()
@@ -139,7 +140,7 @@ func (x *InitTemplateCommand) Execute(args []string) error {
 // GenTemplate generate the template.
 func GenTemplate(writer io.Writer) error {
 	_, err := writer.Write([]byte(configTemplate))
-	return err
+	return fmt.Errorf("failed to write config file: %w", err)
 }
 
 // RegisterInitCommand registers the init command with the parser.

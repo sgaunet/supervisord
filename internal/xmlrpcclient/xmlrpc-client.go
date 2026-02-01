@@ -84,7 +84,7 @@ func (r *XMLRPCClient) createHTTPRequest(method string, url string, data any) (*
 		if r.verbose {
 			fmt.Println("Fail to create request:", err)
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to create HTTP request for %s: %w", url, err)
 	}
 
 	if len(r.user) > 0 && len(r.password) > 0 {

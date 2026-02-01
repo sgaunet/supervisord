@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -63,8 +64,12 @@ func readFile(path string) ([]byte, error) {
 	// #nosec G304 - path is validated at caller from supervisor configuration
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open config file %s: %w", path, err)
 	}
 	defer func() { _ = f.Close() }()
-	return io.ReadAll(f)
+	b, err := io.ReadAll(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
+	}
+	return b, nil
 }

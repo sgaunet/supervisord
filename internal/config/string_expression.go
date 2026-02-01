@@ -69,19 +69,19 @@ func (se *StringExpression) substituteVariable(s string, start int, end int, typ
 	varValue, ok := se.env[varName]
 
 	if !ok {
-		return "", apperrors.NewEnvVarNotFoundError(varName)
+		return "", apperrors.NewEnvVarNotFoundError(varName) //nolint:wrapcheck // Internal error type with context
 	}
 	switch s[typ] {
 	case 'd':
 		i, err := strconv.Atoi(varValue)
 		if err != nil {
-			return "", apperrors.NewEnvVarConversionError(varValue)
+			return "", apperrors.NewEnvVarConversionError(varValue) //nolint:wrapcheck // Internal error type with context
 		}
 		return s[0:start] + fmt.Sprintf("%"+s[end+1:typ+1], i) + s[typ+1:], nil
 	case 's':
 		return s[0:start] + varValue + s[typ+1:], nil
 	default:
-		return "", apperrors.NewTypeNotImplementedError(string(s[typ]))
+		return "", apperrors.NewTypeNotImplementedError(string(s[typ])) //nolint:wrapcheck // Internal error type with context
 	}
 }
 

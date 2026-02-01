@@ -344,7 +344,10 @@ func (p *Process) getNumberProcs() int {
 func (p *Process) SendProcessStdin(chars string) error {
 	if p.stdin != nil {
 		_, err := p.stdin.Write([]byte(chars))
-		return err
+		if err != nil {
+			return fmt.Errorf("failed to write to process stdin: %w", err)
+		}
+		return nil
 	}
 	return apperrors.ErrNoFile
 }
@@ -557,11 +560,11 @@ func (p *Process) attemptProgramStart(finishCbWrapper func()) (bool, error) {
 	if err != nil {
 		if atomic.LoadInt32(p.retryTimes) >= p.getStartRetries() {
 			p.failToStartProgram(fmt.Sprintf("fail to start program with error:%v", err), finishCbWrapper)
-			return false, err
+			return false, fmt.Errorf("failed to start program after retries: %w", err)
 		}
 		log.WithFields(log.Fields{"program": p.GetName()}).Info("fail to start program with error:", err)
 		p.changeStateTo(Backoff)
-		return true, err // should continue retrying
+		return true, fmt.Errorf("failed to start program (retrying): %w", err)
 	}
 
 	if p.StdoutLog != nil {
@@ -787,7 +790,10 @@ func (p *Process) sendSignal(sig os.Signal, sigChildren bool) error {
 	if p.cmd != nil && p.cmd.Process != nil {
 		log.WithFields(log.Fields{"program": p.GetName(), "signal": sig}).Info("Send signal to program")
 		err := signals.Kill(p.cmd.Process, sig, sigChildren)
-		return err
+		if err != nil {
+			return fmt.Errorf("failed to send signal %v to process: %w", sig, err)
+		}
+		return nil
 	}
 	return apperrors.ErrProcessNotStarted
 }
@@ -991,24 +997,24 @@ func (p *Process) setUser() error {
 	}
 	u, err := user.Lookup(userName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to lookup user %s: %w", userName, err)
 	}
 	uid, err := strconv.ParseUint(u.Uid, 10, 32)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse uid %s for user %s: %w", u.Uid, userName, err)
 	}
 	gid, err := strconv.ParseUint(u.Gid, 10, 32)
 	if err != nil && groupName == "" {
-		return err
+		return fmt.Errorf("failed to parse gid %s for user %s: %w", u.Gid, userName, err)
 	}
 	if groupName != "" {
 		g, err := user.LookupGroup(groupName)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to lookup group %s: %w", groupName, err)
 		}
 		gid, err = strconv.ParseUint(g.Gid, 10, 32)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse gid %s for group %s: %w", g.Gid, groupName, err)
 		}
 	}
 	setUserID(p.cmd.SysProcAttr, uint32(uid), uint32(gid))

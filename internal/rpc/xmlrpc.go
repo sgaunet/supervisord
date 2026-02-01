@@ -1,23 +1,24 @@
 package rpc
 
 import (
-	"github.com/sgaunet/supervisord/internal/supervisor"
-	"github.com/sgaunet/supervisord/internal/web"
 	"crypto/sha1" //nolint:gosec
 	"encoding/hex"
+	"fmt"
 	"io"
-	
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/sgaunet/supervisord/internal/supervisor"
+	"github.com/sgaunet/supervisord/internal/web"
+
 	"github.com/gorilla/rpc"
 	"github.com/ochinchina/gorilla-xmlrpc/xml"
-	"github.com/sgaunet/supervisord/internal/process"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sgaunet/supervisord/internal/process"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -105,12 +106,12 @@ func ReadFile(path string) ([]byte, error) {
 	// #nosec G304 - path is validated at caller from supervisor configuration
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}
 	defer func() { _ = f.Close() }()
 	b, err := io.ReadAll(f)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
 	}
 
 	return b, nil

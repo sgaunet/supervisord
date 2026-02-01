@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -72,7 +73,10 @@ func (sr *SupervisorRestful) _startProgram(program string) (bool, error) {
 	startArgs := supervisor.StartProcessArgs{Name: program, Wait: true}
 	result := struct{ Success bool }{false}
 	err := sr.supervisor.StartProcess(nil, &startArgs, &result)
-	return result.Success, err
+	if err != nil {
+		return result.Success, fmt.Errorf("failed to start program %s: %w", program, err)
+	}
+	return result.Success, nil
 }
 
 // StartPrograms start one or more programs through restful interface.
@@ -115,7 +119,10 @@ func (sr *SupervisorRestful) _stopProgram(programName string) (bool, error) {
 	stopArgs := supervisor.StartProcessArgs{Name: programName, Wait: true}
 	result := struct{ Success bool }{false}
 	err := sr.supervisor.StopProcess(nil, &stopArgs, &result)
-	return result.Success, err
+	if err != nil {
+		return result.Success, fmt.Errorf("failed to stop program %s: %w", programName, err)
+	}
+	return result.Success, nil
 }
 
 // StopPrograms stop programs through the restful interface.

@@ -196,7 +196,7 @@ func parseSysLogConfig(config string) (protocol string, host string, port int, e
 			host = fields[0]
 			port, err = strconv.Atoi(fields[1])
 			if err != nil {
-				return "", "", 0, err
+				return "", "", 0, fmt.Errorf("failed to parse port %s: %w", fields[1], err)
 			}
 		}
 	case 3:
@@ -204,7 +204,7 @@ func parseSysLogConfig(config string) (protocol string, host string, port int, e
 		host = fields[1]
 		port, err = strconv.Atoi(fields[2])
 		if err != nil {
-			return "", "", 0, err
+			return "", "", 0, fmt.Errorf("failed to parse port %s: %w", fields[2], err)
 		}
 	default:
 		err = apperrors.ErrInvalidFormat

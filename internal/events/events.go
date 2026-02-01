@@ -180,7 +180,7 @@ func (el *EventListener) waitForReady() error {
 	for {
 		line, err := el.stdin.ReadString('\n')
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read from event listener stdin: %w", err)
 		}
 		if line == "READY\n" {
 			log.WithFields(log.Fields{"eventListener": el.pool}).Debug("the event listener is ready")
@@ -192,7 +192,7 @@ func (el *EventListener) waitForReady() error {
 func (el *EventListener) readResult() (string, error) {
 	s, err := el.stdin.ReadString('\n')
 	if err != nil {
-		return s, err
+		return s, fmt.Errorf("failed to read result line: %w", err)
 	}
 	fields := strings.Fields(s)
 	if len(fields) == 2 && fields[0] == "RESULT" {
@@ -200,7 +200,7 @@ func (el *EventListener) readResult() (string, error) {
 		n, err := strconv.Atoi(fields[1])
 		if err != nil {
 			// return if fail to get the length
-			return "", err
+			return "", fmt.Errorf("failed to parse result length: %w", err)
 		}
 		if n < 0 {
 			return "", apperrors.ErrNegativeResultBytes
@@ -210,7 +210,7 @@ func (el *EventListener) readResult() (string, error) {
 		for i := range n {
 			b[i], err = el.stdin.ReadByte()
 			if err != nil {
-				return "", err
+				return "", fmt.Errorf("failed to read result byte %d: %w", i, err)
 			}
 		}
 		// ok, get the n bytes

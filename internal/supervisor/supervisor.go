@@ -158,14 +158,20 @@ func (s *Supervisor) GetPID(r *http.Request, args *struct{}, reply *struct{ Pid 
 func (s *Supervisor) ReadLog(r *http.Request, args *LogReadInfo, reply *struct{ Log string }) error {
 	data, err := s.logger.ReadLog(int64(args.Offset), int64(args.Length))
 	reply.Log = data
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to read supervisor log: %w", err)
+	}
+	return nil
 }
 
 // ClearLog clear the supervisor log.
 func (s *Supervisor) ClearLog(r *http.Request, args *struct{}, reply *struct{ Ret bool }) error {
 	err := s.logger.ClearAllLogFile()
 	reply.Ret = err == nil
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to clear supervisor log: %w", err)
+	}
+	return nil
 }
 
 // Shutdown the supervisor.
@@ -226,7 +232,7 @@ func (s *Supervisor) GetProcessInfo(r *http.Request, args *struct{ Name string }
 	log.Info("Get process info of: ", args.Name)
 	proc := s.procMgr.Find(args.Name)
 	if proc == nil {
-		return apperrors.NewBadNameError(args.Name)
+		return apperrors.NewBadNameError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 
 	reply.ProcInfo = *getProcessInfo(proc)
@@ -238,7 +244,7 @@ func (s *Supervisor) StartProcess(r *http.Request, args *StartProcessArgs, reply
 	procs := s.procMgr.FindMatch(args.Name)
 
 	if len(procs) == 0 {
-		return apperrors.NewNoProcessError(args.Name)
+		return apperrors.NewNoProcessError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 	for _, proc := range procs {
 		proc.Start(args.Wait)
@@ -298,7 +304,7 @@ func (s *Supervisor) StopProcess(r *http.Request, args *StartProcessArgs, reply 
 	log.WithFields(log.Fields{"program": args.Name}).Info("stop process")
 	procs := s.procMgr.FindMatch(args.Name)
 	if len(procs) == 0 {
-		return apperrors.NewNoProcessError(args.Name)
+		return apperrors.NewNoProcessError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 	for _, proc := range procs {
 		proc.Stop(args.Wait)
@@ -356,7 +362,7 @@ func (s *Supervisor) SignalProcess(r *http.Request, args *types.ProcessSignal, r
 	procs := s.procMgr.FindMatch(args.Name)
 	if len(procs) == 0 {
 		reply.Success = false
-		return apperrors.NewNoProcessError(args.Name)
+		return apperrors.NewNoProcessError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 	sig, err := signals.ToSignal(args.Signal)
 	if err == nil {
@@ -417,8 +423,9 @@ func (s *Supervisor) SendProcessStdin(r *http.Request, args *ProcessStdin, reply
 		reply.Success = true
 	} else {
 		reply.Success = false
+		return fmt.Errorf("failed to send stdin to process: %w", err)
 	}
-	return err
+	return nil
 }
 
 // SendRemoteCommEvent emit a remote communication event.
@@ -461,7 +468,10 @@ func (s *Supervisor) Reload(restart bool) (addedGroup []string, changedGroup []s
 		}
 	}
 	addedGroup, changedGroup, removedGroup = s.config.ProgramGroup.Sub(prevProgGroup)
-	return addedGroup, changedGroup, removedGroup, err
+	if err != nil {
+		return addedGroup, changedGroup, removedGroup, fmt.Errorf("failed to reload configuration: %w", err)
+	}
+	return addedGroup, changedGroup, removedGroup, nil
 }
 
 // WaitForExit waits for supervisord to exit.
@@ -597,59 +607,74 @@ func (s *Supervisor) RemoveProcessGroup(r *http.Request, args *struct{ Name stri
 func (s *Supervisor) ReadProcessStdoutLog(r *http.Request, args *ProcessLogReadInfo, reply *struct{ LogData string }) error {
 	proc := s.procMgr.Find(args.Name)
 	if proc == nil {
-		return apperrors.NewNoProcessError(args.Name)
+		return apperrors.NewNoProcessError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 	var err error
 	reply.LogData, err = proc.StdoutLog.ReadLog(int64(args.Offset), int64(args.Length))
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to read stdout log for %s: %w", args.Name, err)
+	}
+	return nil
 }
 
 // ReadProcessStderrLog reads stderr log of given program.
 func (s *Supervisor) ReadProcessStderrLog(r *http.Request, args *ProcessLogReadInfo, reply *struct{ LogData string }) error {
 	proc := s.procMgr.Find(args.Name)
 	if proc == nil {
-		return apperrors.NewNoProcessError(args.Name)
+		return apperrors.NewNoProcessError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 	var err error
 	reply.LogData, err = proc.StderrLog.ReadLog(int64(args.Offset), int64(args.Length))
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to read stderr log for %s: %w", args.Name, err)
+	}
+	return nil
 }
 
 // TailProcessStdoutLog tails stdout of the program.
 func (s *Supervisor) TailProcessStdoutLog(r *http.Request, args *ProcessLogReadInfo, reply *ProcessTailLog) error {
 	proc := s.procMgr.Find(args.Name)
 	if proc == nil {
-		return apperrors.NewNoProcessError(args.Name)
+		return apperrors.NewNoProcessError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 	var err error
 	reply.LogData, reply.Offset, reply.Overflow, err = proc.StdoutLog.ReadTailLog(int64(args.Offset), int64(args.Length))
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to tail stdout log for %s: %w", args.Name, err)
+	}
+	return nil
 }
 
 // TailProcessStderrLog tails stderr of the program.
 func (s *Supervisor) TailProcessStderrLog(r *http.Request, args *ProcessLogReadInfo, reply *ProcessTailLog) error {
 	proc := s.procMgr.Find(args.Name)
 	if proc == nil {
-		return apperrors.NewNoProcessError(args.Name)
+		return apperrors.NewNoProcessError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 	var err error
 	reply.LogData, reply.Offset, reply.Overflow, err = proc.StderrLog.ReadTailLog(int64(args.Offset), int64(args.Length))
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to tail stderr log for %s: %w", args.Name, err)
+	}
+	return nil
 }
 
 // ClearProcessLogs clears log of given program.
 func (s *Supervisor) ClearProcessLogs(r *http.Request, args *struct{ Name string }, reply *struct{ Success bool }) error {
 	proc := s.procMgr.Find(args.Name)
 	if proc == nil {
-		return apperrors.NewNoProcessError(args.Name)
+		return apperrors.NewNoProcessError(args.Name) //nolint:wrapcheck // Internal error type with context
 	}
 	err1 := proc.StdoutLog.ClearAllLogFile()
 	err2 := proc.StderrLog.ClearAllLogFile()
 	reply.Success = err1 == nil && err2 == nil
 	if err1 != nil {
-		return err1
+		return fmt.Errorf("failed to clear stdout log for %s: %w", args.Name, err1)
 	}
-	return err2
+	if err2 != nil {
+		return fmt.Errorf("failed to clear stderr log for %s: %w", args.Name, err2)
+	}
+	return nil
 }
 
 // ClearAllProcessLogs clears logs of all programs.
