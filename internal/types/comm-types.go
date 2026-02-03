@@ -1,3 +1,6 @@
+// Package types provides shared type definitions used across the supervisord codebase.
+// This includes process information structures, RPC reply types, and common data models
+// for inter-package communication.
 package types
 
 import (

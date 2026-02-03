@@ -4,11 +4,15 @@
 package signals
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"syscall"
 )
+
+// ErrInvalidSignalType is returned when a signal type assertion fails.
+var ErrInvalidSignalType = errors.New("signal type assertion failed")
 
 var signalMap = map[string]os.Signal{"SIGABRT": syscall.SIGABRT,
 	"SIGALRM":   syscall.SIGALRM,
@@ -67,7 +71,7 @@ func ToSignal(signalName string) (os.Signal, error) {
 func Kill(process *os.Process, sig os.Signal, sigChildren bool) error {
 	localSig, ok := sig.(syscall.Signal)
 	if !ok {
-		return fmt.Errorf("signal type assertion failed: expected syscall.Signal, got %T", sig)
+		return fmt.Errorf("%w: expected syscall.Signal, got %T", ErrInvalidSignalType, sig)
 	}
 	pid := process.Pid
 	if sigChildren {
