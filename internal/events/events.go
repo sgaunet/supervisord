@@ -520,7 +520,7 @@ func (pec *ProcCommEventCapture) startCapture() {
 	}()
 }
 
-//nolint:ireturn // Factory method returning interface type for polymorphism
+//nolint:ireturn // Factory pattern requires interface return
 func (pec *ProcCommEventCapture) captureEvent() Event {
 	pec.findBeginStr()
 	endPos := pec.findEndStr()

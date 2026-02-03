@@ -20,7 +20,7 @@ func HasAllElements(arr1 []any, arr2 []any) bool {
 
 // StringArrayToInterfacArray converts []string to []any.
 func StringArrayToInterfacArray(arr []string) []any {
-	result := make([]any, 0)
+	result := make([]any, 0, len(arr))
 	for _, s := range arr {
 		result = append(result, s)
 	}

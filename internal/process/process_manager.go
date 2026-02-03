@@ -175,7 +175,7 @@ func forOneProcess(proc *Process, action func(p *Process), done chan *Process) {
 }
 
 func (pm *Manager) getAllProcess() []*Process {
-	tmpProcs := make([]*Process, 0)
+	tmpProcs := make([]*Process, 0, len(pm.procs))
 	for _, proc := range pm.procs {
 		tmpProcs = append(tmpProcs, proc)
 	}

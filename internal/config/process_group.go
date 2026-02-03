@@ -61,7 +61,7 @@ func (pg *ProcessGroup) GetAllGroup() []string {
 		groups[group] = true
 	}
 
-	result := make([]string, 0)
+	result := make([]string, 0, len(groups))
 	for group := range groups {
 		result = append(result, group)
 	}

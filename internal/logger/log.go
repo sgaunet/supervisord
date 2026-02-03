@@ -725,7 +725,7 @@ func (cl *CompositeLogger) ClearAllLogFile() error {
 //nolint:ireturn // Factory pattern requires interface return
 func NewLogger(programName string, logFile string, locker sync.Locker, maxBytes int64, backups int, props map[string]string, logEventEmitter LogEventEmitter) Logger {
 	files := splitLogFile(logFile)
-	loggers := make([]Logger, 0)
+	loggers := make([]Logger, 0, len(files))
 	for i, f := range files {
 		var lr Logger
 		if i == 0 {

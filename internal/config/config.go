@@ -294,8 +294,8 @@ func (c *Config) GetEventListeners() []*Entry {
 
 // GetProgramNames returns slice with all program names.
 func (c *Config) GetProgramNames() []string {
-	result := make([]string, 0)
 	programs := c.GetPrograms()
+	result := make([]string, 0, len(programs))
 
 	programs = sortProgram(programs)
 	for _, entry := range programs {
