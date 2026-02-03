@@ -1,9 +1,7 @@
-// Package types provides shared type definitions used across the supervisord codebase.
+// Package models provides shared type definitions used across the supervisord codebase.
 // This includes process information structures, RPC reply types, and common data models
 // for inter-package communication.
-//
-//nolint:revive // "types" is a standard Go convention for shared type definitions in internal packages
-package types
+package models
 
 import (
 	"fmt"

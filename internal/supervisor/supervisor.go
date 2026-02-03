@@ -13,9 +13,9 @@ import (
 	"github.com/sgaunet/supervisord/internal/events"
 	"github.com/sgaunet/supervisord/internal/faults"
 	"github.com/sgaunet/supervisord/internal/logger"
+	"github.com/sgaunet/supervisord/internal/models"
 	"github.com/sgaunet/supervisord/internal/process"
 	"github.com/sgaunet/supervisord/internal/signals"
-	"github.com/sgaunet/supervisord/internal/types"
 	"github.com/sgaunet/supervisord/internal/util"
 
 	log "github.com/sirupsen/logrus"
@@ -199,8 +199,8 @@ func (s *Supervisor) IsRestarting() bool {
 	return s.restarting
 }
 
-func getProcessInfo(proc *process.Process) *types.ProcessInfo {
-	return &types.ProcessInfo{Name: proc.GetName(),
+func getProcessInfo(proc *process.Process) *models.ProcessInfo {
+	return &models.ProcessInfo{Name: proc.GetName(),
 		Group:         proc.GetGroup(),
 		Description:   proc.GetDescription(),
 		Start:         int(proc.GetStartTime().Unix()),
@@ -217,18 +217,18 @@ func getProcessInfo(proc *process.Process) *types.ProcessInfo {
 }
 
 // GetAllProcessInfo get all the program information managed by supervisor.
-func (s *Supervisor) GetAllProcessInfo(_ *http.Request, _ *struct{}, reply *struct{ AllProcessInfo []types.ProcessInfo }) error {
-	reply.AllProcessInfo = make([]types.ProcessInfo, 0)
+func (s *Supervisor) GetAllProcessInfo(_ *http.Request, _ *struct{}, reply *struct{ AllProcessInfo []models.ProcessInfo }) error {
+	reply.AllProcessInfo = make([]models.ProcessInfo, 0)
 	s.procMgr.ForEachProcess(func(proc *process.Process) {
 		procInfo := getProcessInfo(proc)
 		reply.AllProcessInfo = append(reply.AllProcessInfo, *procInfo)
 	})
-	types.SortProcessInfos(reply.AllProcessInfo)
+	models.SortProcessInfos(reply.AllProcessInfo)
 	return nil
 }
 
 // GetProcessInfo get the process information of one program.
-func (s *Supervisor) GetProcessInfo(_ *http.Request, args *struct{ Name string }, reply *struct{ ProcInfo types.ProcessInfo }) error {
+func (s *Supervisor) GetProcessInfo(_ *http.Request, args *struct{ Name string }, reply *struct{ ProcInfo models.ProcessInfo }) error {
 	log.Info("Get process info of: ", args.Name)
 	proc := s.procMgr.Find(args.Name)
 	if proc == nil {
@@ -279,7 +279,7 @@ func (s *Supervisor) StartAllProcesses(_ *http.Request, args *struct {
 }
 
 // StartProcessGroup start all the processes in one group.
-func (s *Supervisor) StartProcessGroup(_ *http.Request, args *StartProcessArgs, reply *struct{ AllProcessInfo []types.ProcessInfo }) error {
+func (s *Supervisor) StartProcessGroup(_ *http.Request, args *StartProcessArgs, reply *struct{ AllProcessInfo []models.ProcessInfo }) error {
 	log.WithFields(log.Fields{"group": args.Name}).Info("start process group")
 	finishedProcCh := make(chan *process.Process)
 
@@ -314,7 +314,7 @@ func (s *Supervisor) StopProcess(_ *http.Request, args *StartProcessArgs, reply 
 }
 
 // StopProcessGroup stop all processes in one group.
-func (s *Supervisor) StopProcessGroup(_ *http.Request, args *StartProcessArgs, reply *struct{ AllProcessInfo []types.ProcessInfo }) error {
+func (s *Supervisor) StopProcessGroup(_ *http.Request, args *StartProcessArgs, reply *struct{ AllProcessInfo []models.ProcessInfo }) error {
 	log.WithFields(log.Fields{"group": args.Name}).Info("stop process group")
 	finishedProcCh := make(chan *process.Process)
 	n := s.procMgr.AsyncForEachProcess(func(proc *process.Process) {
@@ -358,7 +358,7 @@ func (s *Supervisor) StopAllProcesses(_ *http.Request, args *struct {
 }
 
 // SignalProcess send a signal to running program.
-func (s *Supervisor) SignalProcess(_ *http.Request, args *types.ProcessSignal, reply *struct{ Success bool }) error {
+func (s *Supervisor) SignalProcess(_ *http.Request, args *models.ProcessSignal, reply *struct{ Success bool }) error {
 	procs := s.procMgr.FindMatch(args.Name)
 	if len(procs) == 0 {
 		reply.Success = false
@@ -375,7 +375,7 @@ func (s *Supervisor) SignalProcess(_ *http.Request, args *types.ProcessSignal, r
 }
 
 // SignalProcessGroup send signal to all processes in one group.
-func (s *Supervisor) SignalProcessGroup(_ *http.Request, args *types.ProcessSignal, reply *struct{ AllProcessInfo []types.ProcessInfo }) error {
+func (s *Supervisor) SignalProcessGroup(_ *http.Request, args *models.ProcessSignal, reply *struct{ AllProcessInfo []models.ProcessInfo }) error {
 	s.procMgr.ForEachProcess(func(proc *process.Process) {
 		if proc.GetGroup() == args.Name {
 			sig, err := signals.ToSignal(args.Signal)
@@ -394,7 +394,7 @@ func (s *Supervisor) SignalProcessGroup(_ *http.Request, args *types.ProcessSign
 }
 
 // SignalAllProcesses send signal to all the processes in the supervisor.
-func (s *Supervisor) SignalAllProcesses(_ *http.Request, args *types.ProcessSignal, reply *struct{ AllProcessInfo []types.ProcessInfo }) error {
+func (s *Supervisor) SignalAllProcesses(_ *http.Request, args *models.ProcessSignal, reply *struct{ AllProcessInfo []models.ProcessInfo }) error {
 	s.procMgr.ForEachProcess(func(proc *process.Process) {
 		sig, err := signals.ToSignal(args.Signal)
 		if err == nil {
@@ -593,7 +593,7 @@ func toLogLevel(level string) log.Level {
 }
 
 // ReloadConfig reloads supervisord configuration file.
-func (s *Supervisor) ReloadConfig(_ *http.Request, _ *struct{}, reply *types.ReloadConfigResult) error {
+func (s *Supervisor) ReloadConfig(_ *http.Request, _ *struct{}, reply *models.ReloadConfigResult) error {
 	log.Info("start to reload config")
 	addedGroup, changedGroup, removedGroup, err := s.Reload(false)
 	if len(addedGroup) > 0 {

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	apperrors "github.com/sgaunet/supervisord/internal/errors"
-	"github.com/sgaunet/supervisord/internal/types"
+	"github.com/sgaunet/supervisord/internal/models"
 
 	"github.com/ochinchina/gorilla-xmlrpc/xml"
 )
@@ -42,7 +42,7 @@ type ShutdownReply StartStopReply
 
 // AllProcessInfoReply all the processes information from supervisor.
 type AllProcessInfoReply struct {
-	Value []types.ProcessInfo
+	Value []models.ProcessInfo
 }
 
 var emptyReader io.ReadCloser
@@ -258,7 +258,7 @@ func (r *XMLRPCClient) Shutdown() (reply ShutdownReply, err error) {
 }
 
 // ReloadConfig requests supervisord to reload its configuration.
-func (r *XMLRPCClient) ReloadConfig() (reply types.ReloadConfigResult, err error) {
+func (r *XMLRPCClient) ReloadConfig() (reply models.ReloadConfigResult, err error) {
 	ins := struct{}{}
 
 	xmlProcMgr := NewXMLProcessorManager()
@@ -294,8 +294,8 @@ func (r *XMLRPCClient) ReloadConfig() (reply types.ReloadConfigResult, err error
 }
 
 // SignalProcess requests to send signal to program.
-func (r *XMLRPCClient) SignalProcess(signal string, name string) (reply types.BooleanReply, err error) {
-	ins := types.ProcessSignal{Name: name, Signal: signal}
+func (r *XMLRPCClient) SignalProcess(signal string, name string) (reply models.BooleanReply, err error) {
+	ins := models.ProcessSignal{Name: name, Signal: signal}
 	r.post("supervisor.signalProcess", &ins, func(body io.ReadCloser, procError error) {
 		err = procError
 		if err == nil {
@@ -319,9 +319,9 @@ func (r *XMLRPCClient) SignalAll(signal string) (reply AllProcessInfoReply, err 
 }
 
 // GetProcessInfo requests given supervised process information.
-func (r *XMLRPCClient) GetProcessInfo(process string) (reply types.ProcessInfo, err error) {
+func (r *XMLRPCClient) GetProcessInfo(process string) (reply models.ProcessInfo, err error) {
 	ins := struct{ Name string }{process}
-	result := struct{ Reply types.ProcessInfo }{}
+	result := struct{ Reply models.ProcessInfo }{}
 	r.post("supervisor.getProcessInfo", &ins, func(body io.ReadCloser, procError error) {
 		err = procError
 		if err == nil {
@@ -329,7 +329,7 @@ func (r *XMLRPCClient) GetProcessInfo(process string) (reply types.ProcessInfo, 
 			if err == nil {
 				reply = result.Reply
 			} else if r.verbose {
-				fmt.Printf("Fail to decode to types.ProcessInfo\n")
+				fmt.Printf("Fail to decode to models.ProcessInfo\n")
 			}
 		}
 	})
@@ -338,7 +338,7 @@ func (r *XMLRPCClient) GetProcessInfo(process string) (reply types.ProcessInfo, 
 }
 
 // StartProcess Start a process.
-func (r *XMLRPCClient) StartProcess(process string, wait bool) (reply types.BooleanReply, err error) {
+func (r *XMLRPCClient) StartProcess(process string, wait bool) (reply models.BooleanReply, err error) {
 	ins := struct {
 		Name string
 		Wait bool
@@ -366,7 +366,7 @@ func (r *XMLRPCClient) StartProcess(process string, wait bool) (reply types.Bool
 }
 
 // StopProcess Stop a process named by name.
-func (r *XMLRPCClient) StopProcess(process string, wait bool) (reply types.BooleanReply, err error) {
+func (r *XMLRPCClient) StopProcess(process string, wait bool) (reply models.BooleanReply, err error) {
 	ins := struct {
 		Name string
 		Wait bool

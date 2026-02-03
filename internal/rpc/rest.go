@@ -10,7 +10,7 @@ import (
 	"github.com/sgaunet/supervisord/internal/supervisor"
 
 	"github.com/gorilla/mux"
-	"github.com/sgaunet/supervisord/internal/types"
+	"github.com/sgaunet/supervisord/internal/models"
 )
 
 // SupervisorRestful the restful interface to control the programs defined in configuration file.
@@ -46,7 +46,7 @@ func (sr *SupervisorRestful) CreateSupervisorHandler() http.Handler {
 //
 // json array to present the status of all programs.
 func (sr *SupervisorRestful) ListProgram(w http.ResponseWriter, _ *http.Request) {
-	result := struct{ AllProcessInfo []types.ProcessInfo }{make([]types.ProcessInfo, 0)}
+	result := struct{ AllProcessInfo []models.ProcessInfo }{make([]models.ProcessInfo, 0)}
 	if sr.supervisor.GetAllProcessInfo(nil, nil, &result) == nil {
 		if err := json.NewEncoder(w).Encode(result.AllProcessInfo); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

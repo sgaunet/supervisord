@@ -11,7 +11,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/sgaunet/supervisord/internal/config"
 	apperrors "github.com/sgaunet/supervisord/internal/errors"
-	"github.com/sgaunet/supervisord/internal/types"
+	"github.com/sgaunet/supervisord/internal/models"
 	"github.com/sgaunet/supervisord/internal/xmlrpcclient"
 )
 
@@ -351,7 +351,7 @@ func (x *CtlCommand) getPid(rpcc *xmlrpcclient.XMLRPCClient, process string) {
 	fmt.Printf("%d\n", procInfo.Pid)
 }
 
-func (x *CtlCommand) getProcessInfo(rpcc *xmlrpcclient.XMLRPCClient, process string) (types.ProcessInfo, error) {
+func (x *CtlCommand) getProcessInfo(rpcc *xmlrpcclient.XMLRPCClient, process string) (models.ProcessInfo, error) {
 	info, err := rpcc.GetProcessInfo(process)
 	if err != nil {
 		return info, fmt.Errorf("failed to get process info for %s: %w", process, err)
@@ -386,7 +386,7 @@ func (x *CtlCommand) showProcessInfo(reply *xmlrpcclient.AllProcessInfoReply, pr
 	}
 }
 
-func (x *CtlCommand) inProcessMap(procInfo *types.ProcessInfo, processesMap map[string]bool) bool {
+func (x *CtlCommand) inProcessMap(procInfo *models.ProcessInfo, processesMap map[string]bool) bool {
 	if len(processesMap) == 0 {
 		return true
 	}
