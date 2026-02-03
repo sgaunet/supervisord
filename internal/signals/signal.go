@@ -1,13 +1,18 @@
 // +build !windows,!darwin
 
+// Package signals provides utilities for signal handling and process signaling.
 package signals
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"syscall"
 )
+
+// ErrInvalidSignalType is returned when a signal type assertion fails.
+var ErrInvalidSignalType = errors.New("signal type assertion failed")
 
 var signalMap = map[string]os.Signal{"SIGABRT": syscall.SIGABRT,
 	"SIGALRM":   syscall.SIGALRM,
@@ -45,10 +50,10 @@ var signalMap = map[string]os.Signal{"SIGABRT": syscall.SIGABRT,
 	"SIGXCPU":   syscall.SIGXCPU,
 	"SIGXFSZ":   syscall.SIGXFSZ}
 
-// ToSignal returns OS dependent signal name for given signal name (or syscall.SIGTERM if garbage given)
+// ToSignal returns OS dependent signal name for given signal name (or syscall.SIGTERM if garbage given).
 func ToSignal(signalName string) (os.Signal, error) {
 	if !strings.HasPrefix(signalName, "SIG") {
-		signalName = fmt.Sprintf("SIG%s", signalName)
+		signalName = "SIG" + signalName
 	}
 	if sig, ok := signalMap[signalName]; ok {
 		return sig, nil
@@ -56,18 +61,24 @@ func ToSignal(signalName string) (os.Signal, error) {
 	return syscall.SIGTERM, nil
 }
 
-// Kill sends signal to the process
+// Kill sends signal to the process.
 //
-// Args:
+// Args:.
 //    process - the process which the signal should be sent to
 //    sig - the signal will be sent
 //    sigChildren - true if the signal needs to be sent to the children also
 //
 func Kill(process *os.Process, sig os.Signal, sigChildren bool) error {
-	localSig := sig.(syscall.Signal)
+	localSig, ok := sig.(syscall.Signal)
+	if !ok {
+		return fmt.Errorf("%w: expected syscall.Signal, got %T", ErrInvalidSignalType, sig)
+	}
 	pid := process.Pid
 	if sigChildren {
 		pid = -pid
 	}
-	return syscall.Kill(pid, localSig)
+	if err := syscall.Kill(pid, localSig); err != nil {
+		return fmt.Errorf("failed to send signal to process %d: %w", pid, err)
+	}
+	return nil
 }

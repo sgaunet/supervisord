@@ -1,5 +1,6 @@
-// +build darwin
+//go:build darwin
 
+// Package signals provides signal name to os.Signal mapping for process control.
 package signals
 
 import (
@@ -7,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"syscall"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
 var signalMap = map[string]os.Signal{"SIGABRT": syscall.SIGABRT,
@@ -42,30 +45,35 @@ var signalMap = map[string]os.Signal{"SIGABRT": syscall.SIGABRT,
 	"SIGXCPU":   syscall.SIGXCPU,
 	"SIGXFSZ":   syscall.SIGXFSZ}
 
-// ToSignal convert a signal name to signal
+// ToSignal convert a signal name to signal.
 func ToSignal(signalName string) (os.Signal, error) {
 	if !strings.HasPrefix(signalName, "SIG") {
-		signalName = fmt.Sprintf("SIG%s", signalName)
+		signalName = "SIG" + signalName
 	}
 	if sig, ok := signalMap[signalName]; ok {
 		return sig, nil
 	}
 	return syscall.SIGTERM, nil
-
 }
 
-// Kill send signal to the process
+// Kill send signal to the process.
 //
-// Args:
-//    process - the process which the signal should be sent to
-//    sig - the signal will be sent
-//    sigChildren - true if the signal needs to be sent to the children also
+// Args:.
 //
+//	process - the process which the signal should be sent to
+//	sig - the signal will be sent
+//	sigChildren - true if the signal needs to be sent to the children also
 func Kill(process *os.Process, sig os.Signal, sigChildren bool) error {
-	localSig := sig.(syscall.Signal)
+	localSig, ok := sig.(syscall.Signal)
+	if !ok {
+		return apperrors.NewInvalidSignalTypeError(sig) //nolint:wrapcheck // Internal error type with context
+	}
 	pid := process.Pid
 	if sigChildren {
 		pid = -pid
 	}
-	return syscall.Kill(pid, localSig)
+	if err := syscall.Kill(pid, localSig); err != nil {
+		return fmt.Errorf("failed to send signal %v to pid %d: %w", sig, pid, err)
+	}
+	return nil
 }

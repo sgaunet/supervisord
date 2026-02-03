@@ -1,6 +1,6 @@
 //go:build !windows
-// +build !windows
 
+// Package daemon provides process daemonization and zombie reaping functionality.
 package daemon
 
 import (
@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Daemonize run this process in daemon mode
+// Daemonize run this process in daemon mode.
 func Daemonize(logfile string, proc func()) {
 	context := daemon.Context{LogFileName: logfile, PidFileName: "supervisord.pid"}
 
@@ -23,6 +23,6 @@ func Daemonize(logfile string, proc func()) {
 	if child != nil {
 		return
 	}
-	defer context.Release()
+	defer func() { _ = context.Release() }()
 	proc()
 }

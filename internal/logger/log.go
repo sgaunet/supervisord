@@ -1,3 +1,4 @@
+// Package logger provides multi-target logging functionality with file rotation and syslog support.
 package logger
 
 import (
@@ -8,11 +9,12 @@ import (
 	"strings"
 	"sync"
 
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 	"github.com/sgaunet/supervisord/internal/events"
 	"github.com/sgaunet/supervisord/internal/faults"
 )
 
-// Logger the log interface to log program stdout/stderr logs to file
+// Logger the log interface to log program stdout/stderr logs to file.
 type Logger interface {
 	io.WriteCloser
 	SetPid(pid int)
@@ -22,12 +24,12 @@ type Logger interface {
 	ClearAllLogFile() error
 }
 
-// LogEventEmitter the interface to emit log events
+// LogEventEmitter the interface to emit log events.
 type LogEventEmitter interface {
 	emitLogEvent(data string)
 }
 
-// FileLogger log program stdout/stderr to file
+// FileLogger log program stdout/stderr to file.
 type FileLogger struct {
 	name            string
 	maxSize         int64
@@ -38,34 +40,35 @@ type FileLogger struct {
 	locker          sync.Locker
 }
 
-// SysLogger log program stdout/stderr to syslog
+// SysLogger log program stdout/stderr to syslog.
 type SysLogger struct {
 	NullLogger
+
 	logWriter       io.WriteCloser
 	logEventEmitter LogEventEmitter
 }
 
-// NullLogger discard the program stdout/stderr log
+// NullLogger discard the program stdout/stderr log.
 type NullLogger struct {
 	logEventEmitter LogEventEmitter
 }
 
-// NullLocker no lock
+// NullLocker no lock.
 type NullLocker struct {
 }
 
-// ChanLogger write log message by channel
+// ChanLogger write log message by channel.
 type ChanLogger struct {
 	channel chan []byte
 }
 
-// CompositeLogger dispatch the log message to other loggers
+// CompositeLogger dispatch the log message to other loggers.
 type CompositeLogger struct {
 	lock    sync.Mutex
 	loggers []Logger
 }
 
-// NewFileLogger creates FileLogger object
+// NewFileLogger creates FileLogger object.
 func NewFileLogger(name string, maxSize int64, backups int, logEventEmitter LogEventEmitter, locker sync.Locker) *FileLogger {
 	logger := &FileLogger{name: name,
 		maxSize:         maxSize,
@@ -74,19 +77,19 @@ func NewFileLogger(name string, maxSize int64, backups int, logEventEmitter LogE
 		file:            nil,
 		logEventEmitter: logEventEmitter,
 		locker:          locker}
-	logger.openFile(false)
+	_ = logger.openFile(false) // Ignore error on initial open, will be logged on write
 	return logger
 }
 
-// SetPid sets pid of the program
-func (l *FileLogger) SetPid(pid int) {
+// SetPid sets pid of the program.
+func (l *FileLogger) SetPid(_ int) {
 	// NOTHING TO DO
 }
 
-// open the file and truncate the file if trunc is true
+// open the file and truncate the file if trunc is true.
 func (l *FileLogger) openFile(trunc bool) error {
 	if l.file != nil {
-		l.file.Close()
+		_ = l.file.Close() // Ignore error, opening new file regardless
 	}
 	var err error
 	fileInfo, err := os.Stat(l.name)
@@ -95,12 +98,13 @@ func (l *FileLogger) openFile(trunc bool) error {
 		l.file, err = os.Create(l.name)
 	} else {
 		l.fileSize = fileInfo.Size()
-		l.file, err = os.OpenFile(l.name, os.O_RDWR|os.O_APPEND, 0666)
+		l.file, err = os.OpenFile(l.name, os.O_RDWR|os.O_APPEND, 0600) //nolint:mnd // 0600 is standard user-only file permissions
 	}
 	if err != nil {
 		fmt.Printf("Fail to open log file --%s-- with error %v\n", l.name, err)
+		return fmt.Errorf("failed to open log file %s: %w", l.name, err)
 	}
-	return err
+	return nil
 }
 
 func (l *FileLogger) backupFiles() {
@@ -108,14 +112,14 @@ func (l *FileLogger) backupFiles() {
 		src := fmt.Sprintf("%s.%d", l.name, i)
 		dest := fmt.Sprintf("%s.%d", l.name, i+1)
 		if _, err := os.Stat(src); err == nil {
-			os.Rename(src, dest)
+			_ = os.Rename(src, dest) // Ignore error, best effort rotation
 		}
 	}
-	dest := fmt.Sprintf("%s.1", l.name)
-	os.Rename(l.name, dest)
+	dest := l.name + ".1"
+	_ = os.Rename(l.name, dest) // Ignore error, best effort rotation
 }
 
-// ClearCurLogFile clears contents (re-open with truncate) of current log file
+// ClearCurLogFile clears contents (re-open with truncate) of current log file.
 func (l *FileLogger) ClearCurLogFile() error {
 	l.locker.Lock()
 	defer l.locker.Unlock()
@@ -123,7 +127,7 @@ func (l *FileLogger) ClearCurLogFile() error {
 	return l.openFile(true)
 }
 
-// ClearAllLogFile clears contents of all log files (re-open with truncate)
+// ClearAllLogFile clears contents of all log files (re-open with truncate).
 func (l *FileLogger) ClearAllLogFile() error {
 	l.locker.Lock()
 	defer l.locker.Unlock()
@@ -134,24 +138,48 @@ func (l *FileLogger) ClearAllLogFile() error {
 		if err == nil {
 			err = os.Remove(logFile)
 			if err != nil {
-				return faults.NewFault(faults.Failed, err.Error())
+				return faults.NewFault(faults.Failed, err.Error()) //nolint:wrapcheck // Internal error type with context
 			}
 		}
 	}
 	err := l.openFile(true)
 	if err != nil {
-		return faults.NewFault(faults.Failed, err.Error())
+		return faults.NewFault(faults.Failed, err.Error()) //nolint:wrapcheck // Internal error type with context
 	}
 	return nil
 }
 
-// ReadLog reads log from current logfile
+func calculateReadParams(offset int64, length int64, fileLen int64) (int64, int64, bool) {
+	switch {
+	case offset < 0: // offset < 0 && length == 0
+		offset = fileLen + offset
+		offset = max(offset, 0)
+		length = fileLen - offset
+	case length == 0: // offset >= 0 && length == 0
+		if offset > fileLen {
+			return 0, 0, false // empty result
+		}
+		length = fileLen - offset
+	default: // offset >= 0 && length > 0
+		// if the offset exceeds the length of file
+		if offset >= fileLen {
+			return 0, 0, false // empty result
+		}
+		// compute actual bytes should be read
+		if offset+length > fileLen {
+			length = fileLen - offset
+		}
+	}
+	return offset, length, true
+}
+
+// ReadLog reads log from current logfile.
 func (l *FileLogger) ReadLog(offset int64, length int64) (string, error) {
 	if offset < 0 && length != 0 {
-		return "", faults.NewFault(faults.BadArguments, "BAD_ARGUMENTS")
+		return "", faults.NewFault(faults.BadArguments, "BAD_ARGUMENTS") //nolint:wrapcheck // Internal error type with context
 	}
 	if offset >= 0 && length < 0 {
-		return "", faults.NewFault(faults.BadArguments, "BAD_ARGUMENTS")
+		return "", faults.NewFault(faults.BadArguments, "BAD_ARGUMENTS") //nolint:wrapcheck // Internal error type with context
 	}
 
 	l.locker.Lock()
@@ -159,58 +187,37 @@ func (l *FileLogger) ReadLog(offset int64, length int64) (string, error) {
 	f, err := os.Open(l.name)
 
 	if err != nil {
-		return "", faults.NewFault(faults.Failed, "FAILED")
+		return "", fmt.Errorf("failed to open log file %s: %w", l.name, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// check the length of file
 	statInfo, err := f.Stat()
 	if err != nil {
-		return "", faults.NewFault(faults.Failed, "FAILED")
+		return "", fmt.Errorf("failed to stat log file %s: %w", l.name, err)
 	}
 
 	fileLen := statInfo.Size()
-
-	if offset < 0 { // offset < 0 && length == 0
-		offset = fileLen + offset
-		if offset < 0 {
-			offset = 0
-		}
-		length = fileLen - offset
-	} else if length == 0 { // offset >= 0 && length == 0
-		if offset > fileLen {
-			return "", nil
-		}
-		length = fileLen - offset
-	} else { // offset >= 0 && length > 0
-
-		// if the offset exceeds the length of file
-		if offset >= fileLen {
-			return "", nil
-		}
-
-		// compute actual bytes should be read
-
-		if offset+length > fileLen {
-			length = fileLen - offset
-		}
+	offset, length, shouldRead := calculateReadParams(offset, length, fileLen)
+	if !shouldRead {
+		return "", nil
 	}
 
 	b := make([]byte, length)
 	n, err := f.ReadAt(b, offset)
-	if err != nil {
-		return "", faults.NewFault(faults.Failed, "FAILED")
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("failed to read log file %s: %w", l.name, err)
 	}
 	return string(b[:n]), nil
 }
 
-// ReadTailLog tails current log file
+// ReadTailLog tails current log file.
 func (l *FileLogger) ReadTailLog(offset int64, length int64) (string, int64, bool, error) {
 	if offset < 0 {
-		return "", offset, false, fmt.Errorf("offset should not be less than 0")
+		return "", offset, false, apperrors.ErrOffsetNegative
 	}
 	if length < 0 {
-		return "", offset, false, fmt.Errorf("length should be not be less than 0")
+		return "", offset, false, apperrors.ErrLengthNegative
 	}
 	l.locker.Lock()
 	defer l.locker.Unlock()
@@ -218,15 +225,15 @@ func (l *FileLogger) ReadTailLog(offset int64, length int64) (string, int64, boo
 	// open the file
 	f, err := os.Open(l.name)
 	if err != nil {
-		return "", 0, false, err
+		return "", 0, false, fmt.Errorf("failed to open log file %s: %w", l.name, err)
 	}
 
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// get the length of file
 	statInfo, err := f.Stat()
 	if err != nil {
-		return "", 0, false, err
+		return "", 0, false, fmt.Errorf("failed to stat log file %s: %w", l.name, err)
 	}
 
 	fileLen := statInfo.Size()
@@ -243,14 +250,13 @@ func (l *FileLogger) ReadTailLog(offset int64, length int64) (string, int64, boo
 
 	b := make([]byte, length)
 	n, err := f.ReadAt(b, offset)
-	if err != nil {
-		return "", offset, false, err
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", offset, false, fmt.Errorf("failed to read log file %s: %w", l.name, err)
 	}
 	return string(b[:n]), offset + int64(n), false, nil
-
 }
 
-// Write overrides function in io.Writer. Write log message to the file
+// Write overrides function in io.Writer. Write log message to the file.
 func (l *FileLogger) Write(p []byte) (int, error) {
 	l.locker.Lock()
 	defer l.locker.Unlock()
@@ -258,7 +264,7 @@ func (l *FileLogger) Write(p []byte) (int, error) {
 	n, err := l.file.Write(p)
 
 	if err != nil {
-		return n, err
+		return n, fmt.Errorf("failed to write to log file %s: %w", l.name, err)
 	}
 	l.logEventEmitter.emitLogEvent(string(p))
 	l.fileSize += int64(n)
@@ -267,180 +273,191 @@ func (l *FileLogger) Write(p []byte) (int, error) {
 		if errStat == nil {
 			l.fileSize = fileInfo.Size()
 		} else {
-			return n, errStat
+			return n, fmt.Errorf("failed to stat log file %s: %w", l.name, errStat)
 		}
 	}
 	if l.fileSize >= l.maxSize {
-		l.Close()
+		_ = l.Close() // Ignore error, will reopen anyway
 		l.backupFiles()
-		l.openFile(true)
+		_ = l.openFile(true) // Ignore error, will log on next write
 	}
-	return n, err
+	return n, nil
 }
 
-// Close file logger
+// Close file logger.
 func (l *FileLogger) Close() error {
 	if l.file != nil {
 		err := l.file.Close()
 		l.file = nil
-		return err
+		if err != nil {
+			return fmt.Errorf("failed to close log file %s: %w", l.name, err)
+		}
 	}
 	return nil
 }
 
-// Write log to syslog
+// Write log to syslog.
 func (sl *SysLogger) Write(b []byte) (int, error) {
 	sl.logEventEmitter.emitLogEvent(string(b))
 	if sl.logWriter == nil {
-		return 0, errors.New("not connect to syslog server")
+		return 0, apperrors.ErrNotConnectedToSyslog
 	}
-	return sl.logWriter.Write(b)
+	n, err := sl.logWriter.Write(b)
+	if err != nil {
+		return n, fmt.Errorf("failed to write to syslog: %w", err)
+	}
+	return n, nil
 }
 
-// Close (sys)logger
+// Close (sys)logger.
 func (sl *SysLogger) Close() error {
 	if sl.logWriter == nil {
-		return errors.New("not connect to syslog server")
+		return apperrors.ErrNotConnectedToSyslog
 	}
-	return sl.logWriter.Close()
+	if err := sl.logWriter.Close(); err != nil {
+		return fmt.Errorf("failed to close syslog: %w", err)
+	}
+	return nil
 }
 
-// NewNullLogger creates NullLogger object
+// NewNullLogger creates NullLogger object.
 func NewNullLogger(logEventEmitter LogEventEmitter) *NullLogger {
 	return &NullLogger{logEventEmitter: logEventEmitter}
 }
 
-// SetPid sets pid of program
-func (l *NullLogger) SetPid(pid int) {
+// SetPid sets pid of program.
+func (l *NullLogger) SetPid(_ int) {
 	// NOTHING TO DO
 }
 
-// Write log to NullLogger
+// Write log to NullLogger.
 func (l *NullLogger) Write(p []byte) (int, error) {
 	l.logEventEmitter.emitLogEvent(string(p))
 	return len(p), nil
 }
 
-// Close the NullLogger
+// Close the NullLogger.
 func (l *NullLogger) Close() error {
 	return nil
 }
 
-// ReadLog returns error for NullLogger
-func (l *NullLogger) ReadLog(offset int64, length int64) (string, error) {
-	return "", faults.NewFault(faults.NoFile, "NO_FILE")
+// ReadLog returns error for NullLogger.
+func (l *NullLogger) ReadLog(_ int64, _ int64) (string, error) {
+	return "", faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
-// ReadTailLog returns error for NullLogger
-func (l *NullLogger) ReadTailLog(offset int64, length int64) (string, int64, bool, error) {
-	return "", 0, false, faults.NewFault(faults.NoFile, "NO_FILE")
+// ReadTailLog returns error for NullLogger.
+func (l *NullLogger) ReadTailLog(_ int64, _ int64) (string, int64, bool, error) {
+	return "", 0, false, faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
-// ClearCurLogFile returns error for NullLogger
+// ClearCurLogFile returns error for NullLogger.
 func (l *NullLogger) ClearCurLogFile() error {
-	return fmt.Errorf("No log")
+	return apperrors.ErrNoLog
 }
 
-// ClearAllLogFile returns error for NullLogger
+// ClearAllLogFile returns error for NullLogger.
 func (l *NullLogger) ClearAllLogFile() error {
-	return faults.NewFault(faults.NoFile, "NO_FILE")
+	return faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
-// NewChanLogger creates ChanLogger object
+// NewChanLogger creates ChanLogger object.
 func NewChanLogger(channel chan []byte) *ChanLogger {
 	return &ChanLogger{channel: channel}
 }
 
-// SetPid sets program pid
-func (l *ChanLogger) SetPid(pid int) {
+// SetPid sets program pid.
+func (l *ChanLogger) SetPid(_ int) {
 	// NOTHING TO DO
 }
 
-// Write log to the channel
+// Write log to the channel.
 func (l *ChanLogger) Write(p []byte) (int, error) {
 	l.channel <- p
 	return len(p), nil
 }
 
-// Close ChanLogger
+// Close ChanLogger.
 func (l *ChanLogger) Close() error {
 	defer func() {
-		if err := recover(); err != nil {
-		}
+		_ = recover()
 	}()
 	close(l.channel)
 	return nil
 }
 
-// ReadLog returns error for ChanLogger
-func (l *ChanLogger) ReadLog(offset int64, length int64) (string, error) {
-	return "", faults.NewFault(faults.NoFile, "NO_FILE")
+// ReadLog returns error for ChanLogger.
+func (l *ChanLogger) ReadLog(_ int64, _ int64) (string, error) {
+	return "", faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
-// ReadTailLog returns error for ChanLogger
-func (l *ChanLogger) ReadTailLog(offset int64, length int64) (string, int64, bool, error) {
-	return "", 0, false, faults.NewFault(faults.NoFile, "NO_FILE")
+// ReadTailLog returns error for ChanLogger.
+func (l *ChanLogger) ReadTailLog(_ int64, _ int64) (string, int64, bool, error) {
+	return "", 0, false, faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
-// ClearCurLogFile returns error for ChanLogger
+// ClearCurLogFile returns error for ChanLogger.
 func (l *ChanLogger) ClearCurLogFile() error {
-	return fmt.Errorf("No log")
+	return apperrors.ErrNoLog
 }
 
-// ClearAllLogFile returns error for ChanLogger
+// ClearAllLogFile returns error for ChanLogger.
 func (l *ChanLogger) ClearAllLogFile() error {
-	return faults.NewFault(faults.NoFile, "NO_FILE")
+	return faults.NewFault(faults.NoFile, "NO_FILE") //nolint:wrapcheck // Internal error type with context
 }
 
-// NewNullLocker creates new NullLocker object
+// NewNullLocker creates new NullLocker object.
 func NewNullLocker() *NullLocker {
 	return &NullLocker{}
 }
 
-// Lock is a stub function for NullLocker
+// Lock is a stub function for NullLocker.
 func (l *NullLocker) Lock() {
 }
 
-// Unlock is a stub function for NullLocker
+// Unlock is a stub function for NullLocker.
 func (l *NullLocker) Unlock() {
 }
 
-// StdLogger stdout/stderr logger implementation
+// StdLogger stdout/stderr logger implementation.
 type StdLogger struct {
 	NullLogger
+
 	logEventEmitter LogEventEmitter
 	writer          io.Writer
 }
 
-// NewStdoutLogger creates StdLogger object
+// NewStdoutLogger creates StdLogger object.
 func NewStdoutLogger(logEventEmitter LogEventEmitter) *StdLogger {
 	return &StdLogger{logEventEmitter: logEventEmitter,
 		writer: os.Stdout}
 }
 
-// Write output to stdout/stderr
+// Write output to stdout/stderr.
 func (l *StdLogger) Write(p []byte) (int, error) {
 	n, err := l.writer.Write(p)
-	if err != nil {
+	if err == nil {
 		l.logEventEmitter.emitLogEvent(string(p))
+	} else {
+		err = fmt.Errorf("failed to write to std logger: %w", err)
 	}
 	return n, err
 }
 
-// NewStderrLogger creates stderr logger
+// NewStderrLogger creates stderr logger.
 func NewStderrLogger(logEventEmitter LogEventEmitter) *StdLogger {
 	return &StdLogger{logEventEmitter: logEventEmitter,
 		writer: os.Stderr}
 }
 
-// LogCaptureLogger capture the log for further analysis
+// LogCaptureLogger capture the log for further analysis.
 type LogCaptureLogger struct {
 	underlineLogger        Logger
 	procCommEventCapWriter io.Writer
 	procCommEventCapture   *events.ProcCommEventCapture
 }
 
-// NewLogCaptureLogger creates new LogCaptureLogger object
+// NewLogCaptureLogger creates new LogCaptureLogger object.
 func NewLogCaptureLogger(underlineLogger Logger,
 	captureMaxBytes int,
 	stdType string,
@@ -457,56 +474,77 @@ func NewLogCaptureLogger(underlineLogger Logger,
 		procCommEventCapture:   eventCapture}
 }
 
-// SetPid sets pid of program
+// SetPid sets pid of program.
 func (l *LogCaptureLogger) SetPid(pid int) {
 	l.procCommEventCapture.SetPid(pid)
 }
 
-// Write log to LogCaptureLogger
+// Write log to LogCaptureLogger.
 func (l *LogCaptureLogger) Write(p []byte) (int, error) {
-	l.procCommEventCapWriter.Write(p)
-	return l.underlineLogger.Write(p)
+	_, _ = l.procCommEventCapWriter.Write(p) // Ignore event writer errors
+	n, err := l.underlineLogger.Write(p)
+	if err != nil {
+		return n, fmt.Errorf("failed to write to capture logger: %w", err)
+	}
+	return n, nil
 }
 
-// Close LogCaptureLogger
+// Close LogCaptureLogger.
 func (l *LogCaptureLogger) Close() error {
-	return l.underlineLogger.Close()
+	if err := l.underlineLogger.Close(); err != nil {
+		return fmt.Errorf("failed to close capture logger: %w", err)
+	}
+	return nil
 }
 
-// ReadLog reads log from LogCaptureLogger
+// ReadLog reads log from LogCaptureLogger.
 func (l *LogCaptureLogger) ReadLog(offset int64, length int64) (string, error) {
-	return l.underlineLogger.ReadLog(offset, length)
+	s, err := l.underlineLogger.ReadLog(offset, length)
+	if err != nil {
+		return s, fmt.Errorf("failed to read log: %w", err)
+	}
+	return s, nil
 }
 
-// ReadTailLog tails log from LogCaptureLogger
+// ReadTailLog tails log from LogCaptureLogger.
 func (l *LogCaptureLogger) ReadTailLog(offset int64, length int64) (string, int64, bool, error) {
-	return l.underlineLogger.ReadTailLog(offset, length)
+	s, off, overflow, err := l.underlineLogger.ReadTailLog(offset, length)
+	if err != nil {
+		return s, off, overflow, fmt.Errorf("failed to tail log: %w", err)
+	}
+	return s, off, overflow, nil
 }
 
-// ClearCurLogFile clears current log file
+// ClearCurLogFile clears current log file.
 func (l *LogCaptureLogger) ClearCurLogFile() error {
-	return l.underlineLogger.ClearCurLogFile()
+	if err := l.underlineLogger.ClearCurLogFile(); err != nil {
+		return fmt.Errorf("failed to clear current log file: %w", err)
+	}
+	return nil
 }
 
-// ClearAllLogFile clears all log files
+// ClearAllLogFile clears all log files.
 func (l *LogCaptureLogger) ClearAllLogFile() error {
-	return l.underlineLogger.ClearAllLogFile()
+	if err := l.underlineLogger.ClearAllLogFile(); err != nil {
+		return fmt.Errorf("failed to clear all log files: %w", err)
+	}
+	return nil
 }
 
-// NullLogEventEmitter will not emit log to any listener
+// NullLogEventEmitter will not emit log to any listener.
 type NullLogEventEmitter struct {
 }
 
-// NewNullLogEventEmitter creates new NullLogEventEmitter object
+// NewNullLogEventEmitter creates new NullLogEventEmitter object.
 func NewNullLogEventEmitter() *NullLogEventEmitter {
 	return &NullLogEventEmitter{}
 }
 
-// emitLogEvent emit the log
-func (ne *NullLogEventEmitter) emitLogEvent(data string) {
+// emitLogEvent emit the log.
+func (ne *NullLogEventEmitter) emitLogEvent(_ string) {
 }
 
-// StdLogEventEmitter emit the Stdout/Stderr LogEvent
+// StdLogEventEmitter emit the Stdout/Stderr LogEvent.
 type StdLogEventEmitter struct {
 	Type        string
 	processName string
@@ -514,7 +552,7 @@ type StdLogEventEmitter struct {
 	pidFunc     func() int
 }
 
-// NewStdoutLogEventEmitter creates new StdLogEventEmitter object
+// NewStdoutLogEventEmitter creates new StdLogEventEmitter object.
 func NewStdoutLogEventEmitter(processName string, groupName string, procPidFunc func() int) *StdLogEventEmitter {
 	return &StdLogEventEmitter{Type: "stdout",
 		processName: processName,
@@ -522,7 +560,7 @@ func NewStdoutLogEventEmitter(processName string, groupName string, procPidFunc 
 		pidFunc:     procPidFunc}
 }
 
-// NewStderrLogEventEmitter creates new StdLogEventEmitter object for emitting Stderr log events
+// NewStderrLogEventEmitter creates new StdLogEventEmitter object for emitting Stderr log events.
 func NewStderrLogEventEmitter(processName string, groupName string, procPidFunc func() int) *StdLogEventEmitter {
 	return &StdLogEventEmitter{Type: "stderr",
 		processName: processName,
@@ -530,7 +568,7 @@ func NewStderrLogEventEmitter(processName string, groupName string, procPidFunc 
 		pidFunc:     procPidFunc}
 }
 
-// emitLogEvent emits stdout/stderr log event (with data)
+// emitLogEvent emits stdout/stderr log event (with data).
 func (se *StdLogEventEmitter) emitLogEvent(data string) {
 	if se.Type == "stdout" {
 		events.EmitEvent(events.CreateProcessLogStdoutEvent(se.processName, se.groupName, se.pidFunc(), data))
@@ -539,14 +577,15 @@ func (se *StdLogEventEmitter) emitLogEvent(data string) {
 	}
 }
 
-// BackgroundWriteCloser write data in background
+// BackgroundWriteCloser write data in background.
 type BackgroundWriteCloser struct {
 	io.WriteCloser
+
 	logChannel  chan []byte
 	writeCloser io.WriteCloser
 }
 
-// NewBackgroundWriteCloser creates new BackgroundWriteCloser object
+// NewBackgroundWriteCloser creates new BackgroundWriteCloser object.
 func NewBackgroundWriteCloser(writeCloser io.WriteCloser) *BackgroundWriteCloser {
 	channel := make(chan []byte)
 	bw := &BackgroundWriteCloser{logChannel: channel,
@@ -563,36 +602,39 @@ func (bw *BackgroundWriteCloser) start() {
 			if !ok {
 				break
 			}
-			bw.writeCloser.Write(b)
+			_, _ = bw.writeCloser.Write(b) // Ignore error, async write
 		}
 	}()
 }
 
-// Write data in background
+// Write data in background.
 func (bw *BackgroundWriteCloser) Write(p []byte) (n int, err error) {
 	bw.logChannel <- p
 	return len(p), nil
 }
 
-// Close background data channel
+// Close background data channel.
 func (bw *BackgroundWriteCloser) Close() error {
 	close(bw.logChannel)
-	return bw.writeCloser.Close()
+	if err := bw.writeCloser.Close(); err != nil {
+		return fmt.Errorf("failed to close background writer: %w", err)
+	}
+	return nil
 }
 
-// NewCompositeLogger creates new CompositeLogger object (pool of loggers)
+// NewCompositeLogger creates new CompositeLogger object (pool of loggers).
 func NewCompositeLogger(loggers []Logger) *CompositeLogger {
 	return &CompositeLogger{loggers: loggers}
 }
 
-// AddLogger adds logger to CompositeLogger pool
+// AddLogger adds logger to CompositeLogger pool.
 func (cl *CompositeLogger) AddLogger(logger Logger) {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
 	cl.loggers = append(cl.loggers, logger)
 }
 
-// RemoveLogger removes logger from CompositeLogger pool
+// RemoveLogger removes logger from CompositeLogger pool.
 func (cl *CompositeLogger) RemoveLogger(logger Logger) {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
@@ -604,7 +646,7 @@ func (cl *CompositeLogger) RemoveLogger(logger Logger) {
 	}
 }
 
-// Write dispatches log data to the loggers in CompositeLogger pool
+// Write dispatches log data to the loggers in CompositeLogger pool.
 func (cl *CompositeLogger) Write(p []byte) (n int, err error) {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
@@ -613,13 +655,13 @@ func (cl *CompositeLogger) Write(p []byte) (n int, err error) {
 		if i == 0 {
 			n, err = logger.Write(p)
 		} else {
-			logger.Write(p)
+			_, _ = logger.Write(p) // Ignore error from additional loggers
 		}
 	}
 	return
 }
 
-// Close all loggers in CompositeLogger pool
+// Close all loggers in CompositeLogger pool.
 func (cl *CompositeLogger) Close() (err error) {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
@@ -628,13 +670,13 @@ func (cl *CompositeLogger) Close() (err error) {
 		if i == 0 {
 			err = logger.Close()
 		} else {
-			logger.Close()
+			_ = logger.Close() // Ignore error from additional loggers
 		}
 	}
 	return
 }
 
-// SetPid sets pid to all loggers in CompositeLogger pool
+// SetPid sets pid to all loggers in CompositeLogger pool.
 func (cl *CompositeLogger) SetPid(pid int) {
 	cl.lock.Lock()
 	defer cl.lock.Unlock()
@@ -644,30 +686,46 @@ func (cl *CompositeLogger) SetPid(pid int) {
 	}
 }
 
-// ReadLog read log data from first logger in CompositeLogger pool
+// ReadLog read log data from first logger in CompositeLogger pool.
 func (cl *CompositeLogger) ReadLog(offset int64, length int64) (string, error) {
-	return cl.loggers[0].ReadLog(offset, length)
+	s, err := cl.loggers[0].ReadLog(offset, length)
+	if err != nil {
+		return s, fmt.Errorf("failed to read log from composite logger: %w", err)
+	}
+	return s, nil
 }
 
-// ReadTailLog tail the log data from first logger in CompositeLogger pool
+// ReadTailLog tail the log data from first logger in CompositeLogger pool.
 func (cl *CompositeLogger) ReadTailLog(offset int64, length int64) (string, int64, bool, error) {
-	return cl.loggers[0].ReadTailLog(offset, length)
+	s, off, overflow, err := cl.loggers[0].ReadTailLog(offset, length)
+	if err != nil {
+		return s, off, overflow, fmt.Errorf("failed to tail log from composite logger: %w", err)
+	}
+	return s, off, overflow, nil
 }
 
-// ClearCurLogFile clear the first logger file in CompositeLogger pool
+// ClearCurLogFile clear the first logger file in CompositeLogger pool.
 func (cl *CompositeLogger) ClearCurLogFile() error {
-	return cl.loggers[0].ClearCurLogFile()
+	if err := cl.loggers[0].ClearCurLogFile(); err != nil {
+		return fmt.Errorf("failed to clear current log file in composite logger: %w", err)
+	}
+	return nil
 }
 
-// ClearAllLogFile clear all the files of first logger in CompositeLogger pool
+// ClearAllLogFile clear all the files of first logger in CompositeLogger pool.
 func (cl *CompositeLogger) ClearAllLogFile() error {
-	return cl.loggers[0].ClearAllLogFile()
+	if err := cl.loggers[0].ClearAllLogFile(); err != nil {
+		return fmt.Errorf("failed to clear all log files in composite logger: %w", err)
+	}
+	return nil
 }
 
-// NewLogger creates logger for a program with parameters
+// NewLogger creates logger for a program with parameters.
+//
+//nolint:ireturn // Factory pattern requires interface return
 func NewLogger(programName string, logFile string, locker sync.Locker, maxBytes int64, backups int, props map[string]string, logEventEmitter LogEventEmitter) Logger {
 	files := splitLogFile(logFile)
-	loggers := make([]Logger, 0)
+	loggers := make([]Logger, 0, len(files))
 	for i, f := range files {
 		var lr Logger
 		if i == 0 {
@@ -688,6 +746,7 @@ func splitLogFile(logFile string) []string {
 	return files
 }
 
+//nolint:ireturn // Factory pattern requires interface return
 func createLogger(programName string, logFile string, locker sync.Locker, maxBytes int64, backups int, props map[string]string, logEventEmitter LogEventEmitter) Logger {
 	if logFile == "/dev/stdout" {
 		return NewStdoutLogger(logEventEmitter)

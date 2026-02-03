@@ -35,7 +35,7 @@ func ToSignal(signalName string) (os.Signal, error) {
 }
 
 //
-// Args:
+// Args:.
 //    process - the process
 //    sig - the signal
 //    sigChildren - ignore in windows system

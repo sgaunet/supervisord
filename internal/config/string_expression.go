@@ -5,19 +5,21 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
-// StringExpression replace the python String like "%(var)s" to string
+// StringExpression replace the python String like "%(var)s" to string.
 type StringExpression struct {
 	env map[string]string // the environment variable used to replace the var in the python expression
 }
 
-// NewStringExpression create a new StringExpression with the environment variables
+// NewStringExpression create a new StringExpression with the environment variables.
 func NewStringExpression(envs ...string) *StringExpression {
 	se := &StringExpression{env: make(map[string]string)}
 
 	for _, env := range os.Environ() {
-		t := strings.SplitN(env, "=", 2)
+		t := strings.SplitN(env, "=", 2) //nolint:mnd // Split key=value into 2 parts
 		se.env["ENV_"+t[0]] = t[1]
 	}
 	n := len(envs)
@@ -31,16 +33,59 @@ func NewStringExpression(envs ...string) *StringExpression {
 	}
 
 	return se
-
 }
 
-// Add adds environment variable (key,value)
+// Add adds environment variable (key,value).
 func (se *StringExpression) Add(key string, value string) *StringExpression {
 	se.env[key] = value
 	return se
 }
 
-// Eval substitutes "%(var)s" in given string with evaluated values, and returns resulting string
+func findVariableEnd(s string, start int, n int) int {
+	end := start + 1
+	// find variable end indicator
+	for end < n && s[end] != ')' {
+		end++
+	}
+	return end
+}
+
+func findVariableType(s string, end int, n int) int {
+	typ := end + 1
+	// find the type of the variable
+	for typ < n {
+		ch := s[typ]
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+			break
+		}
+		typ++
+	}
+	return typ
+}
+
+func (se *StringExpression) substituteVariable(s string, start int, end int, typ int) (string, error) {
+	varName := s[start+2 : end]
+
+	varValue, ok := se.env[varName]
+
+	if !ok {
+		return "", apperrors.NewEnvVarNotFoundError(varName) //nolint:wrapcheck // Internal error type with context
+	}
+	switch s[typ] {
+	case 'd':
+		i, err := strconv.Atoi(varValue)
+		if err != nil {
+			return "", apperrors.NewEnvVarConversionError(varValue) //nolint:wrapcheck // Internal error type with context
+		}
+		return s[0:start] + fmt.Sprintf("%"+s[end+1:typ+1], i) + s[typ+1:], nil
+	case 's':
+		return s[0:start] + varValue + s[typ+1:], nil
+	default:
+		return "", apperrors.NewTypeNotImplementedError(string(s[typ])) //nolint:wrapcheck // Internal error type with context
+	}
+}
+
+// Eval substitutes "%(var)s" in given string with evaluated values, and returns resulting string.
 func (se *StringExpression) Eval(s string) (string, error) {
 	for {
 		// find variable start indicator
@@ -50,42 +95,19 @@ func (se *StringExpression) Eval(s string) (string, error) {
 			return s, nil
 		}
 
-		end := start + 1
 		n := len(s)
-
-		// find variable end indicator
-		for end < n && s[end] != ')' {
-			end++
-		}
-
-		// find the type of the variable
-		typ := end + 1
-		for typ < n && !((s[typ] >= 'a' && s[typ] <= 'z') || (s[typ] >= 'A' && s[typ] <= 'Z')) {
-			typ++
-		}
+		end := findVariableEnd(s, start, n)
+		typ := findVariableType(s, end, n)
 
 		// evaluate the variable
 		if typ < n {
-			varName := s[start+2 : end]
-
-			varValue, ok := se.env[varName]
-
-			if !ok {
-				return "", fmt.Errorf("fail to find the environment variable %s", varName)
-			}
-			if s[typ] == 'd' {
-				i, err := strconv.Atoi(varValue)
-				if err != nil {
-					return "", fmt.Errorf("can't convert %s to integer", varValue)
-				}
-				s = s[0:start] + fmt.Sprintf("%"+s[end+1:typ+1], i) + s[typ+1:]
-			} else if s[typ] == 's' {
-				s = s[0:start] + varValue + s[typ+1:]
-			} else {
-				return "", fmt.Errorf("not implement type:%v", s[typ])
+			var err error
+			s, err = se.substituteVariable(s, start, end, typ)
+			if err != nil {
+				return "", err
 			}
 		} else {
-			return "", fmt.Errorf("invalid string expression format")
+			return "", apperrors.ErrInvalidStringExpr
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package process
 
 import (
+	"fmt"
 	"os/user"
 	"path/filepath"
 )
@@ -13,7 +14,7 @@ func pathSplit(path string) []string {
 		if len(file) > 0 {
 			r = append(r, file)
 		}
-		if len(dir) <= 0 {
+		if len(dir) == 0 {
 			break
 		}
 		curPath = dir[0 : len(dir)-1]
@@ -24,7 +25,7 @@ func pathSplit(path string) []string {
 	return r
 }
 
-// PathExpand replaces the ~ with user home directory
+// PathExpand replaces the ~ with user home directory.
 func PathExpand(path string) (string, error) {
 	pathList := pathSplit(path)
 
@@ -39,7 +40,7 @@ func PathExpand(path string) (string, error) {
 		}
 
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to lookup user for path expansion: %w", err)
 		}
 		pathList[0] = usr.HomeDir
 		return filepath.Join(pathList...), nil

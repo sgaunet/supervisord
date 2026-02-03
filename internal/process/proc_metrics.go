@@ -6,7 +6,8 @@ import (
 
 const namespace = "node"
 
-type procCollector struct {
+// ProcCollector collects Prometheus metrics for supervised processes.
+type ProcCollector struct {
 	upDesc         *prometheus.Desc
 	stateDesc      *prometheus.Desc
 	exitStatusDesc *prometheus.Desc
@@ -15,13 +16,13 @@ type procCollector struct {
 }
 
 // NewProcCollector returns new Collector exposing supervisord statistics.
-func NewProcCollector(mgr *Manager) *procCollector {
+func NewProcCollector(mgr *Manager) *ProcCollector {
 	var (
 		subsystem  = "supervisord"
 		labelNames = []string{"name", "group"}
 	)
 
-	return &procCollector{
+	return &ProcCollector{
 		upDesc: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, subsystem, "up"),
 			"Process Up",
@@ -50,22 +51,22 @@ func NewProcCollector(mgr *Manager) *procCollector {
 	}
 }
 
-// Describe generates prometheus metric description
-func (c *procCollector) Describe(ch chan<- *prometheus.Desc) {
+// Describe generates prometheus metric description.
+func (c *ProcCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.upDesc
 	ch <- c.stateDesc
 	ch <- c.exitStatusDesc
 	ch <- c.startTimeDesc
 }
 
-// Collect gathers prometheus metrics for all supervised processes
-func (c *procCollector) Collect(ch chan<- prometheus.Metric) {
+// Collect gathers prometheus metrics for all supervised processes.
+func (c *ProcCollector) Collect(ch chan<- prometheus.Metric) {
 	c.procMgr.ForEachProcess(func(proc *Process) {
 		c.collectProcessMetrics(proc, ch)
 	})
 }
 
-func (c *procCollector) collectProcessMetrics(proc *Process, ch chan<- prometheus.Metric) {
+func (c *ProcCollector) collectProcessMetrics(proc *Process, ch chan<- prometheus.Metric) {
 	labels := []string{proc.GetName(), proc.GetGroup()}
 
 	ch <- prometheus.MustNewConstMetric(c.stateDesc, prometheus.GaugeValue, float64(proc.GetState()), labels...)
@@ -77,5 +78,4 @@ func (c *procCollector) collectProcessMetrics(proc *Process, ch chan<- prometheu
 	} else {
 		ch <- prometheus.MustNewConstMetric(c.upDesc, prometheus.GaugeValue, 0, labels...)
 	}
-
 }

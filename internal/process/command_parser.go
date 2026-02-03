@@ -1,32 +1,35 @@
 package process
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"os/exec"
 	"syscall"
 	"unicode"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
-// find the position of byte ch in the string s start from offset
+// find the position of byte ch in the string s start from offset.
 //
-// return: -1 if byte ch is not found, >= offset if the ch is found
-// in the string s from offset
+// return: -1 if byte ch is not found, >= offset if the ch is found.
+// in the string s from offset.
 func findChar(s string, offset int, ch byte) int {
 	for i := offset; i < len(s); i++ {
-		if s[i] == '\\' {
+		switch s[i] {
+		case '\\':
 			i++
-		} else if s[i] == ch {
+		case ch:
 			return i
 		}
 	}
 	return -1
 }
 
-// skip all the white space and return the first position of non-space char
+// skip all the white space and return the first position of non-space char.
 //
-// return: the first position of non-space char or -1 if all the char
-// from offset are space
+// return: the first position of non-space char or -1 if all the char.
+// from offset are space.
 func skipSpace(s string, offset int) int {
 	for i := offset; i < len(s); i++ {
 		if !unicode.IsSpace(rune(s[i])) {
@@ -43,6 +46,25 @@ func appendArgument(arg string, args []string) []string {
 	return append(args, arg)
 }
 
+func parseNextArgument(command string, start int, cmdLen int) (arg string, nextPos int) {
+	i := start
+	//nolint:gocritic // Complex parsing logic with breaks, not suitable for switch
+	for j := start; j < cmdLen; j++ {
+		if unicode.IsSpace(rune(command[j])) {
+			return command[i:j], j + 1
+		} else if command[j] == '\\' {
+			j++
+		} else if command[j] == '"' || command[j] == '\'' {
+			k := findChar(command, j+1, command[j])
+			if k == -1 {
+				return command[i:], cmdLen
+			}
+			return command[i : k+1], k + 1
+		}
+	}
+	return command[i:], cmdLen
+}
+
 func parseCommand(command string) ([]string, error) {
 	args := make([]string, 0)
 	cmdLen := len(command)
@@ -52,42 +74,20 @@ func parseCommand(command string) ([]string, error) {
 		if j == -1 {
 			break
 		}
-		i = j
-		for ; j < cmdLen; j++ {
-			if unicode.IsSpace(rune(command[j])) {
-				args = appendArgument(command[i:j], args)
-				i = j + 1
-				break
-			} else if command[j] == '\\' {
-				j++
-			} else if command[j] == '"' || command[j] == '\'' {
-				k := findChar(command, j+1, command[j])
-				if k == -1 {
-					args = appendArgument(command[i:], args)
-					i = cmdLen
-				} else {
-					args = appendArgument(command[i:k+1], args)
-					i = k + 1
-				}
-				break
-			}
-		}
-		if j >= cmdLen {
-			args = appendArgument(command[i:], args)
-			i = cmdLen
-		}
+		arg, nextPos := parseNextArgument(command, j, cmdLen)
+		args = appendArgument(arg, args)
+		i = nextPos
 	}
-	if len(args) <= 0 {
-		return nil, fmt.Errorf("no command from empty string")
+	if len(args) == 0 {
+		return nil, apperrors.ErrNoCommandFromString
 	}
 	return args, nil
 }
 
-// create command from string or []string
-//
-func createCommand(command interface{}) (*exec.Cmd, error) {
+// create command from string or []string.
+func createCommand(command any) (*exec.Cmd, error) {
 	args := make([]string, 0)
-	var err error = nil
+	var err error
 
 	if s, ok := command.(string); ok {
 		args, err = parseCommand(s)
@@ -98,11 +98,13 @@ func createCommand(command interface{}) (*exec.Cmd, error) {
 		args = a
 	}
 
-	if len(args) <= 0 {
-		return nil, errors.New("empty command")
+	if len(args) == 0 {
+		return nil, apperrors.ErrEmptyCommand
 	}
 
-	cmd := exec.Command(args[0])
+	ctx := context.Background()
+	// #nosec G204 - command args come from supervisor configuration file which is trusted
+	cmd := exec.CommandContext(ctx, args[0])
 	if len(args) > 1 {
 		cmd.Args = args
 	}
@@ -111,10 +113,14 @@ func createCommand(command interface{}) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func executeCommand(command interface{}) ([]byte, error) {
+func executeCommand(command any) error {
 	cmd, err := createCommand(command)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return cmd.CombinedOutput()
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute command %v: %w", command, err)
+	}
+	return nil
 }

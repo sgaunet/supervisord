@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -9,23 +10,24 @@ import (
 	"github.com/sgaunet/supervisord/internal/supervisor"
 )
 
-type ConfApi struct {
+// ConfAPI provides HTTP API for accessing program configuration files.
+type ConfAPI struct {
 	router     *mux.Router
 	supervisor *supervisor.Supervisor
 }
 
-// NewLogtail creates a Logtail object
-func NewConfApi(s *supervisor.Supervisor) *ConfApi {
-	return &ConfApi{router: mux.NewRouter(), supervisor: s}
+// NewConfAPI creates a ConfAPI object.
+func NewConfAPI(s *supervisor.Supervisor) *ConfAPI {
+	return &ConfAPI{router: mux.NewRouter(), supervisor: s}
 }
 
-// CreateHandler creates http handlers to process the program stdout and stderr through http interface
-func (ca *ConfApi) CreateHandler() http.Handler {
+// CreateHandler creates http handlers to process the program stdout and stderr through http interface.
+func (ca *ConfAPI) CreateHandler() http.Handler {
 	ca.router.HandleFunc("/conf/{program}", ca.getProgramConfFile).Methods("GET")
 	return ca.router
 }
 
-func (ca *ConfApi) getProgramConfFile(writer http.ResponseWriter, request *http.Request) {
+func (ca *ConfAPI) getProgramConfFile(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	if vars == nil {
 		writer.WriteHeader(http.StatusNotFound)
@@ -46,7 +48,7 @@ func (ca *ConfApi) getProgramConfFile(writer http.ResponseWriter, request *http.
 	}
 
 	writer.WriteHeader(http.StatusOK)
-	writer.Write(b)
+	_, _ = writer.Write(b)
 }
 
 func getProgramConfigPath(programName string, s *supervisor.Supervisor) string {
@@ -60,10 +62,15 @@ func getProgramConfigPath(programName string, s *supervisor.Supervisor) string {
 }
 
 func readFile(path string) ([]byte, error) {
+	// #nosec G304 - path is validated at caller from supervisor configuration
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open config file %s: %w", path, err)
 	}
-	defer f.Close()
-	return io.ReadAll(f)
+	defer func() { _ = f.Close() }()
+	b, err := io.ReadAll(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
+	}
+	return b, nil
 }

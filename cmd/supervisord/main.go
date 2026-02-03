@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/ochinchina/go-ini"
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 	"github.com/sgaunet/supervisord/internal/config"
 	"github.com/sgaunet/supervisord/internal/daemon"
 	"github.com/sgaunet/supervisord/internal/supervisor"
@@ -20,9 +22,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var BuildVersion string = ""
+var BuildVersion string
 
-// Options the command line options
+// Options the command line options.
 type Options struct {
 	Configuration string `short:"c" long:"configuration" description:"the configuration file"`
 	Daemon        bool   `short:"d" long:"daemon" description:"run as daemon"`
@@ -54,14 +56,34 @@ func initSignals(s *supervisor.Supervisor) {
 		s.GetManager().StopAllProcesses()
 		os.Exit(-1)
 	}()
-
 }
 
 var options Options
 var parser = flags.NewParser(&options, flags.Default & ^flags.PrintErrors)
 
+func processEnvLine(line string) {
+	// if line starts with '#', it is a comment line, ignore it
+	line = strings.TrimSpace(line)
+	if len(line) > 0 && line[0] == '#' {
+		return
+	}
+	// if environment variable is exported with "export"
+	if strings.HasPrefix(line, "export") && len(line) > len("export") && unicode.IsSpace(rune(line[len("export")])) {
+		line = strings.TrimSpace(line[len("export"):])
+	}
+	// split the environment variable with "="
+	if k, v, ok := strings.Cut(line, "="); ok {
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+		// if key and value are not empty, put it into the environment
+		if len(k) > 0 && len(v) > 0 {
+			_ = os.Setenv(k, v)
+		}
+	}
+}
+
 func loadEnvFile() {
-	if len(options.EnvFile) <= 0 {
+	if len(options.EnvFile) == 0 {
 		return
 	}
 	// try to open the environment file
@@ -70,7 +92,7 @@ func loadEnvFile() {
 		log.WithFields(log.Fields{"file": options.EnvFile}).Error("Fail to open environment file")
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	reader := bufio.NewReader(f)
 	for {
 		// for each line
@@ -78,36 +100,18 @@ func loadEnvFile() {
 		if err != nil {
 			break
 		}
-		// if line starts with '#', it is a comment line, ignore it
-		line = strings.TrimSpace(line)
-		if len(line) > 0 && line[0] == '#' {
-			continue
-		}
-		// if environment variable is exported with "export"
-		if strings.HasPrefix(line, "export") && len(line) > len("export") && unicode.IsSpace(rune(line[len("export")])) {
-			line = strings.TrimSpace(line[len("export"):])
-		}
-		// split the environment variable with "="
-		pos := strings.Index(line, "=")
-		if pos != -1 {
-			k := strings.TrimSpace(line[0:pos])
-			v := strings.TrimSpace(line[pos+1:])
-			// if key and value are not empty, put it into the environment
-			if len(k) > 0 && len(v) > 0 {
-				os.Setenv(k, v)
-			}
-		}
+		processEnvLine(line)
 	}
 }
 
-// find the supervisord.conf in following order:
+// find the supervisord.conf in following order:.
 //
 // 1. $CWD/supervisord.conf
 // 2. $CWD/etc/supervisord.conf
 // 3. /etc/supervisord.conf
 // 4. /etc/supervisor/supervisord.conf (since Supervisor 3.3.0)
 // 5. ../etc/supervisord.conf (Relative to the executable)
-// 6. ../supervisord.conf (Relative to the executable)
+// 6. ../supervisord.conf (Relative to the executable).
 func findSupervisordConf() (string, error) {
 	possibleSupervisordConf := []string{options.Configuration,
 		"./supervisord.ini",
@@ -128,14 +132,14 @@ func findSupervisordConf() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("fail to find supervisord.conf")
+	return "", apperrors.ErrConfigNotFound
 }
 
 func runServer() {
 	// infinite loop for handling Restart ('reload' command)
 	loadEnvFile()
 	for {
-		if len(options.Configuration) <= 0 {
+		if len(options.Configuration) == 0 {
 			options.Configuration, _ = findSupervisordConf()
 		}
 		s := supervisor.NewSupervisor(options.Configuration)
@@ -147,7 +151,7 @@ func runServer() {
 	}
 }
 
-// Get the supervisord log file
+// Get the supervisord log file.
 func getSupervisordLogFile(configFile string) string {
 	configFileDir := filepath.Dir(configFile)
 	env := config.NewStringExpression("here", configFileDir)
@@ -161,9 +165,8 @@ func getSupervisordLogFile(configFile string) string {
 	logFile, err = env.Eval(logFile)
 	if err == nil {
 		return logFile
-	} else {
-		return filepath.Join(".", "supervisord.log")
 	}
+	return filepath.Join(".", "supervisord.log")
 }
 
 func main() {
@@ -171,7 +174,7 @@ func main() {
 	daemon.ReapZombie()
 
 	// when execute `supervisord` without sub-command, it should start the server
-	parser.Command.SubcommandsOptional = true
+	parser.SubcommandsOptional = true
 	parser.CommandHandler = func(command flags.Commander, args []string) error {
 		if command == nil {
 			log.SetOutput(os.Stdout)
@@ -187,13 +190,17 @@ func main() {
 	}
 
 	if _, err := parser.Parse(); err != nil {
-		flagsErr, ok := err.(*flags.Error)
-		if ok {
+		var flagsErr *flags.Error
+		if errors.As(err, &flagsErr) {
 			switch flagsErr.Type {
 			case flags.ErrHelp:
 				_, _ = fmt.Fprintln(os.Stdout, err)
 				os.Exit(0)
-			default:
+			case flags.ErrUnknown, flags.ErrExpectedArgument, flags.ErrUnknownFlag,
+				flags.ErrUnknownGroup, flags.ErrMarshal, flags.ErrNoArgumentForBool,
+				flags.ErrRequired, flags.ErrShortNameTooLong, flags.ErrDuplicatedFlag,
+				flags.ErrTag, flags.ErrCommandRequired, flags.ErrUnknownCommand,
+				flags.ErrInvalidChoice, flags.ErrInvalidTag:
 				_, _ = fmt.Fprintf(os.Stderr, "error when parsing command: %s\n", err)
 				os.Exit(1)
 			}

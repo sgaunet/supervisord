@@ -3,11 +3,12 @@
 package logger
 
 import (
-	"errors"
 	"fmt"
 	"log/syslog"
 	"strconv"
 	"strings"
+
+	apperrors "github.com/sgaunet/supervisord/internal/errors"
 )
 
 func toSyslogLevel(logLevel string) syslog.Priority {
@@ -33,6 +34,7 @@ func toSyslogLevel(logLevel string) syslog.Priority {
 	}
 }
 
+//nolint:cyclop,funlen // Syslog has 17 standard facilities, all cases needed for complete mapping
 func toSyslogFacility(facility string) syslog.Priority {
 	switch strings.ToUpper(facility) {
 	case "KERN", "KERNEL", "LOG_KERN", "LOG_KERNEL":
@@ -77,7 +79,6 @@ func toSyslogFacility(facility string) syslog.Priority {
 		return syslog.LOG_LOCAL7
 	default:
 		return syslog.LOG_LOCAL0
-
 	}
 }
 
@@ -93,7 +94,7 @@ func getSyslogPriority(props map[string]string) syslog.Priority {
 	return logLevel | facility
 }
 
-// NewSysLogger creates local syslog
+// NewSysLogger creates local syslog.
 func NewSysLogger(name string, props map[string]string, logEventEmitter LogEventEmitter) *SysLogger {
 	priority := getSyslogPriority(props)
 	tag := name
@@ -108,7 +109,7 @@ func NewSysLogger(name string, props map[string]string, logEventEmitter LogEvent
 	return logger
 }
 
-// BackendSysLogWriter a syslog writer to write the log to syslog in background
+// BackendSysLogWriter a syslog writer to write the log to syslog in background.
 type BackendSysLogWriter struct {
 	network    string
 	raddr      string
@@ -117,7 +118,7 @@ type BackendSysLogWriter struct {
 	logChannel chan []byte
 }
 
-// NewBackendSysLogWriter creates background syslog writer
+// NewBackendSysLogWriter creates background syslog writer.
 func NewBackendSysLogWriter(network, raddr string, priority syslog.Priority, tag string) *BackendSysLogWriter {
 	bs := &BackendSysLogWriter{network: network, raddr: raddr, priority: priority, tag: tag, logChannel: make(chan []byte)}
 	bs.start()
@@ -126,13 +127,13 @@ func NewBackendSysLogWriter(network, raddr string, priority syslog.Priority, tag
 
 func (bs *BackendSysLogWriter) start() {
 	go func() {
-		var writer *syslog.Writer = nil
+		var writer *syslog.Writer
 		for {
 			b, ok := <-bs.logChannel
 			// if channel is closed
 			if !ok {
 				if writer != nil {
-					writer.Close()
+					_ = writer.Close() // Ignore close error on shutdown
 				}
 				break
 			}
@@ -141,77 +142,82 @@ func (bs *BackendSysLogWriter) start() {
 				writer, _ = syslog.Dial(bs.network, bs.raddr, bs.priority, bs.tag)
 			}
 			if writer != nil {
-				writer.Write(b)
+				_, _ = writer.Write(b) // Ignore syslog write errors
 			}
-
 		}
 	}()
 }
 
-// Write data to the backend syslog writer
+// Write data to the backend syslog writer.
 func (bs *BackendSysLogWriter) Write(b []byte) (int, error) {
 	bs.logChannel <- b
 	return len(b), nil
 }
 
-// Close background write channel
+// Close background write channel.
 func (bs *BackendSysLogWriter) Close() error {
 	close(bs.logChannel)
 	return nil
 }
 
-// parse the configuration for syslog, it should be in following format:
+// parse the configuration for syslog, it should be in following format:.
 // [protocol:]host[:port]
 //
 // - protocol, could be tcp or udp, assuming udp as default
-// - port, if missing, by default for tcp is 6514 and for udp - 514
+// - port, if missing, by default for tcp is 6514 and for udp - 514.
 //
 func parseSysLogConfig(config string) (protocol string, host string, port int, err error) {
 	fields := strings.Split(config, ":")
 	host = ""
 	protocol = ""
 	port = 0
+	const (
+		protocolTCP       = "tcp"
+		protocolUDP       = "udp"
+		singleFieldCount  = 1 // host only
+		twoFieldCount     = 2 // protocol+host or host+port
+		threeFieldCount   = 3 // protocol+host+port
+	)
 	err = nil
 	switch len(fields) {
-	case 1:
+	case singleFieldCount:
 		host = fields[0]
 		port = 514
-		protocol = "udp"
-	case 2:
+		protocol = protocolUDP
+	case twoFieldCount:
 		switch fields[0] {
-		case "tcp":
+		case protocolTCP:
 			host = fields[1]
-			protocol = "tcp"
+			protocol = protocolTCP
 			port = 6514
-		case "udp":
+		case protocolUDP:
 			host = fields[1]
-			protocol = "udp"
+			protocol = protocolUDP
 			port = 514
 		default:
 			protocol = "udp"
 			host = fields[0]
 			port, err = strconv.Atoi(fields[1])
 			if err != nil {
-				return
+				return "", "", 0, fmt.Errorf("failed to parse port %s: %w", fields[1], err)
 			}
 		}
-	case 3:
+	case threeFieldCount:
 		protocol = fields[0]
 		host = fields[1]
 		port, err = strconv.Atoi(fields[2])
 		if err != nil {
-			return
+			return "", "", 0, fmt.Errorf("failed to parse port %s: %w", fields[2], err)
 		}
 	default:
-		err = errors.New("invalid format")
+		err = apperrors.ErrInvalidFormat
 	}
-	return
-
+	return protocol, host, port, err
 }
 
-// NewRemoteSysLogger creates network syslog logger object
+// NewRemoteSysLogger creates network syslog logger object.
 func NewRemoteSysLogger(name string, config string, props map[string]string, logEventEmitter LogEventEmitter) *SysLogger {
-	if len(config) <= 0 {
+	if len(config) == 0 {
 		return NewSysLogger(name, props, logEventEmitter)
 	}
 
@@ -234,5 +240,4 @@ func NewRemoteSysLogger(name string, config string, props map[string]string, log
 		logger.logWriter = NewBackendSysLogWriter(protocol, fmt.Sprintf("%s:%d", host, port), priority, name)
 	}
 	return logger
-
 }

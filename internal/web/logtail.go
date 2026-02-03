@@ -9,18 +9,18 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Logtail tails the process log through http interface
+// Logtail tails the process log through http interface.
 type Logtail struct {
 	router     *mux.Router
 	supervisor *supervisor.Supervisor
 }
 
-// NewLogtail creates a Logtail object
+// NewLogtail creates a Logtail object.
 func NewLogtail(s *supervisor.Supervisor) *Logtail {
 	return &Logtail{router: mux.NewRouter(), supervisor: s}
 }
 
-// CreateHandler creates http handlers to process the program stdout and stderr through http interface
+// CreateHandler creates http handlers to process the program stdout and stderr through http interface.
 func (lt *Logtail) CreateHandler() http.Handler {
 	lt.router.HandleFunc("/logtail/{program}/stdout", lt.getStdoutLog).Methods("GET")
 	lt.router.HandleFunc("/logtail/{program}/stderr", lt.getStderrLog).Methods("GET")
@@ -46,8 +46,8 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	var ok bool = false
-	var compositeLogger *logger.CompositeLogger = nil
+	var ok bool
+	var compositeLogger *logger.CompositeLogger
 	if logType == "stdout" {
 		compositeLogger, ok = proc.StdoutLog.(*logger.CompositeLogger)
 	} else {
@@ -68,9 +68,9 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.WriteHeader(http.StatusOK)
 
-	w.Write([]byte(s))
+	_, _ = w.Write([]byte(s))
 	//
-	//if ok {
+	// if ok {
 	//	w.Header().Set("Transfer-Encoding", "chunked")
 	//	w.WriteHeader(http.StatusOK)
 	//	flusher, _ := w.(http.Flusher)
@@ -91,5 +91,4 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 	//	compositeLogger.RemoveLogger(chanLogger)
 	//	_ = chanLogger.Close()
 	//}
-
 }

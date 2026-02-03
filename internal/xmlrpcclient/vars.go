@@ -1,27 +1,29 @@
+// Package xmlrpcclient provides XML-RPC client functionality for communicating with supervisord.
 package xmlrpcclient
 
-// https://github.com/Supervisor/supervisor/blob/ff7f18169bcc8091055f61279d0a63997d594148/supervisor/xmlrpc.py#L26-L44
+// https://github.com/Supervisor/supervisor/blob/ff7f18169bcc8091055f61279d0a63997d594148/supervisor/xmlrpc.py#L26-L44.
 var (
-	UNKNOWN_METHOD        = 1
-	INCORRECT_PARAMETERS  = 2
-	BAD_ARGUMENTS         = 3
-	SIGNATURE_UNSUPPORTED = 4
-	SHUTDOWN_STATE        = 6
-	BAD_NAME              = 10
-	BAD_SIGNAL            = 11
-	NO_FILE               = 20
-	NOT_EXECUTABLE        = 21
-	FAILED                = 30
-	ABNORMAL_TERMINATION  = 40
-	SPAWN_ERROR           = 50
-	ALREADY_STARTED       = 60
-	NOT_RUNNING           = 70
-	SUCCESS               = 80
-	ALREADY_ADDED         = 90
-	STILL_RUNNING         = 91
-	CANT_REREAD           = 92
+	UnknownMethod       = 1
+	IncorrectParameters = 2
+	BadArguments        = 3
+	SignatureUnsupported = 4
+	ShutdownState       = 6
+	BadName             = 10
+	BadSignal           = 11
+	NoFile              = 20
+	NotExecutable       = 21
+	Failed              = 30
+	AbnormalTermination = 40
+	SpawnError          = 50
+	AlreadyStarted      = 60
+	NotRunning          = 70
+	Success             = 80
+	AlreadyAdded        = 90
+	StillRunning        = 91
+	CantReread          = 92
 )
 
+// ProcStatusInfo contains status information for a single process.
 type ProcStatusInfo struct {
 	Name        string `xml:"name" json:"name"`
 	Group       string `xml:"group" json:"group"`
@@ -29,6 +31,7 @@ type ProcStatusInfo struct {
 	Description string `xml:"description" json:"description"`
 }
 
+// AllProcStatusInfoReply contains status information for all processes.
 type AllProcStatusInfoReply struct {
 	Value []ProcStatusInfo
 }

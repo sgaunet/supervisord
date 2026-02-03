@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ServiceCommand install/uninstall/start/stop supervisord service
+// ServiceCommand install/uninstall/start/stop supervisord service.
 type ServiceCommand struct {
 	Configuration string
 	EnvFile       string
@@ -15,21 +15,31 @@ type ServiceCommand struct {
 
 type program struct{}
 
-// Start supervised service
-func (p *program) Start(s service.Service) error {
+// Start supervised service.
+func (p *program) Start(_ service.Service) error {
 	go p.run()
 	return nil
 }
 
 func (p *program) run() {}
 
-// Stop supervised service
-func (p *program) Stop(s service.Service) error {
+// Stop supervised service.
+func (p *program) Stop(_ service.Service) error {
 	// Stop should not block. Return with a few seconds.
 	return nil
 }
 
-// Execute implement Execute() method defined in flags.Commander interface, executes the given command
+func handleServiceActionResult(action string, err error) error {
+	if err != nil {
+		log.Errorf("Failed to %s service go-supervisord: %v", action, err)
+		fmt.Printf("Failed to %s service go-supervisord: %v\n", action, err)
+		return err
+	}
+	fmt.Printf("Succeed to %s service go-supervisord\n", action)
+	return nil
+}
+
+// Execute implement Execute() method defined in flags.Commander interface, executes the given command.
 func (sc ServiceCommand) Execute(args []string) error {
 	if len(args) == 0 {
 		showUsage()
@@ -54,49 +64,20 @@ func (sc ServiceCommand) Execute(args []string) error {
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
 		log.Error("service init failed", err)
-		return err
+		return fmt.Errorf("failed to create service: %w", err)
 	}
 
 	action := args[0]
 	switch action {
 	case "install":
-		err := s.Install()
-		if err != nil {
-			log.Error("Failed to install service go-supervisord: ", err)
-			fmt.Println("Failed to install service go-supervisord: ", err)
-			return err
-		} else {
-			fmt.Println("Succeed to install service go-supervisord")
-		}
+		return handleServiceActionResult(action, s.Install())
 	case "uninstall":
-		s.Stop()
-		err := s.Uninstall()
-		if err != nil {
-			log.Error("Failed to uninstall service go-supervisord: ", err)
-			fmt.Println("Failed to uninstall service go-supervisord: ", err)
-			return err
-		} else {
-			fmt.Println("Succeed to uninstall service go-supervisord")
-		}
+		_ = s.Stop()
+		return handleServiceActionResult(action, s.Uninstall())
 	case "start":
-		err := s.Start()
-		if err != nil {
-			log.Error("Failed to start service: ", err)
-			fmt.Println("Failed to start service: ", err)
-			return err
-		} else {
-			fmt.Println("Succeed to start service go-supervisord")
-		}
+		return handleServiceActionResult(action, s.Start())
 	case "stop":
-		err := s.Stop()
-		if err != nil {
-			log.Error("Failed to stop service: ", err)
-			fmt.Println("Failed to stop service: ", err)
-			return err
-		} else {
-			fmt.Println("Succeed to stop service go-supervisord")
-		}
-
+		return handleServiceActionResult(action, s.Stop())
 	default:
 		showUsage()
 	}
@@ -108,9 +89,11 @@ func showUsage() {
 	fmt.Println("usage: supervisord service install/uninstall/start/stop")
 }
 
-// RegisterServiceCommand registers the service command with the parser
-func RegisterServiceCommand(p interface{ AddCommand(string, string, string, interface{}) (interface{}, error) }, serviceCmd *ServiceCommand) {
-	p.AddCommand("service",
+// RegisterServiceCommand registers the service command with the parser.
+func RegisterServiceCommand(p interface {
+	AddCommand(shortDescription string, longDescription string, data string, command any) (any, error)
+}, serviceCmd *ServiceCommand) {
+	_, _ = p.AddCommand("service",
 		"install/uninstall/start/stop service",
 		"install/uninstall/start/stop service",
 		serviceCmd)

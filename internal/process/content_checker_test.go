@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"testing"
@@ -33,7 +34,9 @@ func TestBaseCheckFail(t *testing.T) {
 
 func TestTcpCheckOk(t *testing.T) {
 	go func() {
-		listener, err := net.Listen("tcp", ":8999")
+		ctx := context.Background()
+		lc := &net.ListenConfig{}
+		listener, err := lc.Listen(ctx, "tcp", ":8999")
 		if err == nil {
 			defer listener.Close()
 			conn, err := listener.Accept()
@@ -53,7 +56,9 @@ func TestTcpCheckOk(t *testing.T) {
 
 func TestTcpCheckFail(t *testing.T) {
 	go func() {
-		listener, err := net.Listen("tcp", ":8989")
+		ctx := context.Background()
+		lc := &net.ListenConfig{}
+		listener, err := lc.Listen(ctx, "tcp", ":8989")
 		if err == nil {
 			conn, err := listener.Accept()
 			if err == nil {
@@ -72,7 +77,9 @@ func TestTcpCheckFail(t *testing.T) {
 
 func TestHttpCheckOk(t *testing.T) {
 	go func() {
-		listener, err := net.Listen("tcp", ":8999")
+		ctx := context.Background()
+		lc := &net.ListenConfig{}
+		listener, err := lc.Listen(ctx, "tcp", ":8999")
 		if err == nil {
 
 			http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +98,9 @@ func TestHttpCheckOk(t *testing.T) {
 
 func TestHttpCheckFail(t *testing.T) {
 	go func() {
-		listener, err := net.Listen("tcp", ":8999")
+		ctx := context.Background()
+		lc := &net.ListenConfig{}
+		listener, err := lc.Listen(ctx, "tcp", ":8999")
 		if err == nil {
 			http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				defer listener.Close()

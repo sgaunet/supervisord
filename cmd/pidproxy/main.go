@@ -1,6 +1,9 @@
+// Package main implements pidproxy, a signal forwarding proxy for daemonizing processes.
+// It reads a PID from a pidfile and forwards signals to that process.
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -9,34 +12,43 @@ import (
 	"time"
 )
 
+var ErrFailedToGetPid = errors.New("failed to get pid from file")
+
+func handleSignal(sig os.Signal, pidfile string) {
+	fmt.Printf("Get a signal %v\n", sig)
+	if allowForwardSig(sig) {
+		forwardSignal(sig, pidfile)
+	}
+
+	if sig == syscall.SIGTERM ||
+		sig == syscall.SIGINT ||
+		sig == syscall.SIGQUIT {
+		os.Exit(0)
+	}
+}
+
+func checkProcessAlive(pidfile string, exitIfDaemonStopped bool) {
+	pid, err := readPid(pidfile)
+	if err == nil && !isProcessAlive(pid) {
+		fmt.Printf("Process %d is not alive\n", pid)
+		if exitIfDaemonStopped {
+			os.Exit(1)
+		}
+	}
+}
+
 func installSignalAndForward(pidfile string, exitIfDaemonStopped bool) {
 	c := make(chan os.Signal, 1)
 	installSignal(c)
 
-	timer := time.After(5 * time.Second)
+	timer := time.After(5 * time.Second) //nolint:mnd // 5 seconds is the standard health check interval
 	for {
 		select {
 		case sig := <-c:
-			fmt.Printf("Get a signal %v\n", sig)
-			if allowForwardSig(sig) {
-				forwardSignal(sig, pidfile)
-			}
-
-			if sig == syscall.SIGTERM ||
-				sig == syscall.SIGINT ||
-				sig == syscall.SIGQUIT {
-				os.Exit(0)
-			}
+			handleSignal(sig, pidfile)
 		case <-timer:
-			timer = time.After(5 * time.Second)
-			pid, err := readPid(pidfile)
-			if err == nil && !isProcessAlive(pid) {
-				fmt.Printf("Process %d is not alive\n", pid)
-				if exitIfDaemonStopped {
-					os.Exit(1)
-				}
-			}
-
+			timer = time.After(5 * time.Second) //nolint:mnd // 5 seconds is the standard health check interval
+			checkProcessAlive(pidfile, exitIfDaemonStopped)
 		}
 	}
 }
@@ -69,26 +81,28 @@ func forwardSignal(sig os.Signal, pidfile string) {
 }
 
 func readPid(pidfile string) (int, error) {
+	//nolint:gosec // G304: Trusted pidfile path from command argument
 	file, err := os.Open(pidfile)
-	if err == nil {
-		defer file.Close()
-		pid := 0
-		n, err := fmt.Fscanf(file, "%d", &pid)
-		if err == nil {
-			if n != 1 {
-				return pid, errors.New("Fail to get pid from file")
-			}
-			return pid, nil
-		}
+	if err != nil {
+		return 0, fmt.Errorf("failed to open pidfile %s: %w", pidfile, err)
 	}
-	return 0, err
+	defer func() { _ = file.Close() }()
+
+	pid := 0
+	n, err := fmt.Fscanf(file, "%d", &pid)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse pid from %s: %w", pidfile, err)
+	}
+	if n != 1 {
+		return pid, ErrFailedToGetPid
+	}
+	return pid, nil
 }
 
 func startApplication(command string, args []string) {
-	cmd := exec.Command(command)
-	for _, arg := range args {
-		cmd.Args = append(cmd.Args, arg)
-	}
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, command)
+	cmd.Args = append(cmd.Args, args...)
 
 	err := cmd.Start()
 
@@ -98,7 +112,6 @@ func startApplication(command string, args []string) {
 			fmt.Printf("Succeed to start program:%s\n", command)
 			return
 		}
-
 	}
 	fmt.Printf("Fail to start program with error %v\n", err)
 	os.Exit(1)
@@ -118,7 +131,7 @@ func main() {
 		args = os.Args[1:]
 	}
 
-	if len(args) < 2 {
+	if len(args) < 2 { //nolint:mnd // 2 required arguments: pidfile and command
 		printUsage()
 	} else {
 		pidfile := args[0]
