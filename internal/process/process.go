@@ -856,38 +856,11 @@ func (p *Process) setDir() {
 
 func (p *Process) setLog() {
 	if p.config.IsProgram() {
-		p.StdoutLog = p.createStdoutLogger()
-		captureBytes := p.config.GetBytes("stdout_capture_maxbytes", 0)
-		if captureBytes > 0 {
-			log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Info("capture stdout process communication")
-			p.StdoutLog = logger.NewLogCaptureLogger(p.StdoutLog,
-				captureBytes,
-				"PROCESS_COMMUNICATION_STDOUT",
-				p.GetName(),
-				p.GetGroup())
-		}
+		p.setupProgramLogs()
+		return
+	}
 
-		p.cmd.Stdout = p.StdoutLog
-
-		if p.config.GetBool("redirect_stderr", false) {
-			p.StderrLog = p.StdoutLog
-		} else {
-			p.StderrLog = p.createStderrLogger()
-		}
-
-		captureBytes = p.config.GetBytes("stderr_capture_maxbytes", 0)
-
-		if captureBytes > 0 {
-			log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Info("capture stderr process communication")
-			p.StderrLog = logger.NewLogCaptureLogger(p.StdoutLog,
-				captureBytes,
-				"PROCESS_COMMUNICATION_STDERR",
-				p.GetName(),
-				p.GetGroup())
-		}
-
-		p.cmd.Stderr = p.StderrLog
-	} else if p.config.IsEventListener() {
+	if p.config.IsEventListener() {
 		in, err := p.cmd.StdoutPipe()
 		if err != nil {
 			log.WithFields(log.Fields{"eventListener": p.config.GetEventListenerName()}).Error("fail to get stdin")
@@ -909,6 +882,40 @@ func (p *Process) setLog() {
 			in,
 			out)
 	}
+}
+
+func (p *Process) setupProgramLogs() {
+	p.StdoutLog = p.createStdoutLogger()
+	captureBytes := p.config.GetBytes("stdout_capture_maxbytes", 0)
+	if captureBytes > 0 {
+		log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Info("capture stdout process communication")
+		p.StdoutLog = logger.NewLogCaptureLogger(p.StdoutLog,
+			captureBytes,
+			"PROCESS_COMMUNICATION_STDOUT",
+			p.GetName(),
+			p.GetGroup())
+	}
+
+	p.cmd.Stdout = p.StdoutLog
+
+	if p.config.GetBool("redirect_stderr", false) {
+		p.StderrLog = p.StdoutLog
+	} else {
+		p.StderrLog = p.createStderrLogger()
+	}
+
+	captureBytes = p.config.GetBytes("stderr_capture_maxbytes", 0)
+
+	if captureBytes > 0 {
+		log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Info("capture stderr process communication")
+		p.StderrLog = logger.NewLogCaptureLogger(p.StdoutLog,
+			captureBytes,
+			"PROCESS_COMMUNICATION_STDERR",
+			p.GetName(),
+			p.GetGroup())
+	}
+
+	p.cmd.Stderr = p.StderrLog
 }
 
 //nolint:ireturn // Factory pattern requires interface return

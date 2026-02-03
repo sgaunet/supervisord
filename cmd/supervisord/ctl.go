@@ -15,6 +15,10 @@ import (
 	"github.com/sgaunet/supervisord/internal/xmlrpcclient"
 )
 
+const (
+	defaultServerURL = "http://localhost:9001"
+)
+
 // CtlCommand the entry of ctl command.
 type CtlCommand struct {
 	ServerURL string `short:"s" long:"serverurl" description:"URL on which supervisord server is listening"`
@@ -87,18 +91,28 @@ func (x *CtlCommand) getServerURL() string {
 
 	if x.ServerURL != "" {
 		return x.ServerURL
-	} else if _, err := os.Stat(options.Configuration); err == nil {
-		myconfig := config.NewConfig(options.Configuration)
-		if _, err := myconfig.Load(); err == nil {
-			if entry, ok := myconfig.GetSupervisorctl(); ok {
-				serverurl := entry.GetString("serverurl", "")
-				if serverurl != "" {
-					return serverurl
-				}
-			}
-		}
 	}
-	return "http://localhost:9001"
+
+	if _, err := os.Stat(options.Configuration); err != nil {
+		return defaultServerURL
+	}
+
+	myconfig := config.NewConfig(options.Configuration)
+	if _, err := myconfig.Load(); err != nil {
+		return defaultServerURL
+	}
+
+	entry, ok := myconfig.GetSupervisorctl()
+	if !ok {
+		return defaultServerURL
+	}
+
+	serverurl := entry.GetString("serverurl", "")
+	if serverurl != "" {
+		return serverurl
+	}
+
+	return defaultServerURL
 }
 
 func (x *CtlCommand) getUser() string {
@@ -212,32 +226,48 @@ func (x *CtlCommand) startStopProcesses(rpcc *xmlrpcclient.XMLRPCClient, verb st
 func (x *CtlCommand) _startStopProcesses(rpcc *xmlrpcclient.XMLRPCClient, verb string, processes []string, state string, showProcessInfo bool) {
 	if len(processes) == 0 {
 		fmt.Printf("Please specify process for %s\n", verb)
+		return
 	}
+
 	for _, pname := range processes {
 		if pname == "all" {
-			reply, err := rpcc.ChangeAllProcessState(verb)
-			if err == nil {
-				if showProcessInfo {
-					x.showProcessInfo(&reply, make(map[string]bool))
-				}
-			} else {
-				fmt.Printf("Fail to change all process state to %s", state)
-			}
-		} else {
-			if reply, err := rpcc.ChangeProcessState(verb, pname); err == nil {
-				if showProcessInfo {
-					fmt.Printf("%s: ", pname)
-					if !reply.Value {
-						fmt.Printf("not ")
-					}
-					fmt.Printf("%s\n", state)
-				}
-			} else {
-				fmt.Printf("%s: failed [%v]\n", pname, err)
-				os.Exit(1)
-			}
+			x.handleAllProcessesStateChange(rpcc, verb, state, showProcessInfo)
+			continue
 		}
+
+		x.handleSingleProcessStateChange(rpcc, verb, pname, state, showProcessInfo)
 	}
+}
+
+func (x *CtlCommand) handleAllProcessesStateChange(rpcc *xmlrpcclient.XMLRPCClient, verb string, state string, showProcessInfo bool) {
+	reply, err := rpcc.ChangeAllProcessState(verb)
+	if err != nil {
+		fmt.Printf("Fail to change all process state to %s", state)
+		return
+	}
+
+	if showProcessInfo {
+		x.showProcessInfo(&reply, make(map[string]bool))
+	}
+}
+
+func (x *CtlCommand) handleSingleProcessStateChange(rpcc *xmlrpcclient.XMLRPCClient, verb string, pname string, state string, showProcessInfo bool) {
+	reply, err := rpcc.ChangeProcessState(verb, pname)
+	if err != nil {
+		fmt.Printf("%s: failed [%v]\n", pname, err)
+		os.Exit(1)
+		return
+	}
+
+	if !showProcessInfo {
+		return
+	}
+
+	fmt.Printf("%s: ", pname)
+	if !reply.Value {
+		fmt.Printf("not ")
+	}
+	fmt.Printf("%s\n", state)
 }
 
 func (x *CtlCommand) restartProcesses(rpcc *xmlrpcclient.XMLRPCClient, processes []string) {
@@ -281,23 +311,34 @@ func (x *CtlCommand) reload(rpcc *xmlrpcclient.XMLRPCClient) {
 func (x *CtlCommand) signal(rpcc *xmlrpcclient.XMLRPCClient, sigName string, processes []string) {
 	for _, process := range processes {
 		if process == "all" {
-			reply, err := rpcc.SignalAll(process)
-			if err == nil {
-				x.showProcessInfo(&reply, make(map[string]bool))
-			} else {
-				fmt.Printf("Fail to send signal %s to all process", sigName)
-				os.Exit(1)
-			}
-		} else {
-			reply, err := rpcc.SignalProcess(sigName, process)
-			if err == nil && reply.Success {
-				fmt.Printf("Succeed to send signal %s to process %s\n", sigName, process)
-			} else {
-				fmt.Printf("Fail to send signal %s to process %s\n", sigName, process)
-				os.Exit(1)
-			}
+			x.signalAllProcesses(rpcc, sigName, process)
+			continue
 		}
+
+		x.signalSingleProcess(rpcc, sigName, process)
 	}
+}
+
+func (x *CtlCommand) signalAllProcesses(rpcc *xmlrpcclient.XMLRPCClient, sigName string, process string) {
+	reply, err := rpcc.SignalAll(process)
+	if err != nil {
+		fmt.Printf("Fail to send signal %s to all process", sigName)
+		os.Exit(1)
+		return
+	}
+
+	x.showProcessInfo(&reply, make(map[string]bool))
+}
+
+func (x *CtlCommand) signalSingleProcess(rpcc *xmlrpcclient.XMLRPCClient, sigName string, process string) {
+	reply, err := rpcc.SignalProcess(sigName, process)
+	if err != nil || !reply.Success {
+		fmt.Printf("Fail to send signal %s to process %s\n", sigName, process)
+		os.Exit(1)
+		return
+	}
+
+	fmt.Printf("Succeed to send signal %s to process %s\n", sigName, process)
 }
 
 // get the pid of running program.

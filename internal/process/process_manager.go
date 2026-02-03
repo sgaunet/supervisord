@@ -111,26 +111,43 @@ func (pm *Manager) Find(name string) *Process {
 // - group:*
 // - program.
 func (pm *Manager) FindMatch(name string) []*Process {
-	result := make([]*Process, 0)
-	if groupName, programName, ok := strings.Cut(name, ":"); ok {
-		pm.ForEachProcess(func(p *Process) {
-			if p.GetGroup() == groupName {
-				if programName == "*" || programName == p.GetName() {
-					result = append(result, p)
-				}
-			}
-		})
-	} else {
-		pm.lock.Lock()
-		defer pm.lock.Unlock()
-		proc, ok := pm.procs[name]
-		if ok {
-			result = append(result, proc)
-		}
+	groupName, programName, ok := strings.Cut(name, ":")
+	if !ok {
+		return pm.findProcessByName(name)
 	}
-	if len(result) == 0 {
+
+	return pm.findProcessByGroup(groupName, programName)
+}
+
+func (pm *Manager) findProcessByName(name string) []*Process {
+	pm.lock.Lock()
+	defer pm.lock.Unlock()
+
+	proc, ok := pm.procs[name]
+	if !ok {
 		log.Info("fail to find process:", name)
+		return make([]*Process, 0)
 	}
+
+	return []*Process{proc}
+}
+
+func (pm *Manager) findProcessByGroup(groupName string, programName string) []*Process {
+	result := make([]*Process, 0)
+	pm.ForEachProcess(func(p *Process) {
+		if p.GetGroup() != groupName {
+			return
+		}
+
+		if programName == "*" || programName == p.GetName() {
+			result = append(result, p)
+		}
+	})
+
+	if len(result) == 0 {
+		log.Info("fail to find process:", groupName+":"+programName)
+	}
+
 	return result
 }
 
