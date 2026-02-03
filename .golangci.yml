@@ -19,3 +19,7 @@ linters:
     - exhaustruct
     - noinlineerr
     - lll
+    # Additional pragmatic exclusions for legacy code
+    - funcorder  # Function ordering is subjective and doesn't affect functionality
+    - nonamedreturns  # Named returns are idiomatic Go in certain contexts
+    - tagalign  # Struct tag alignment is purely cosmetic
